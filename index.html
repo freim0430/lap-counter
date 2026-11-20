@@ -195,7 +195,7 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
     <h2>1. 準備</h2>
     <div class="row">
       <label class="f">自車ゼッケン
-        <input id="carNo" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="例 33">
+        <input id="carNo" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="例 32">
         <span id="carTeam"></span>
       </label>
       <div class="row grow">
@@ -509,6 +509,7 @@ const DEFAULT_QUAD = [[0.12,0.25],[0.88,0.25],[0.88,0.8],[0.12,0.8]];
 const state = { carNo:'', quad:DEFAULT_QUAD.map(p=>p.slice()), offset:0, interval:1000, confirmN:2, minLap:35, maxLap:600, laps:[], entries:[], tab:'rec',
   entryCols:['no','team','cls','hc','skip'], heats:[], heatName:'', heatStart:null, hcOff:0, hcAt:null, viewPct:70, monCols:null };
 try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s) Object.assign(state, s); } catch (e) {}
+if (!state.carNo) state.carNo = '32';   // our car; can still be changed in the 自車ゼッケン box
 function save(){ try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
 
 /* ---------- helpers ---------- */
@@ -1201,7 +1202,7 @@ function renderColSel(){
   $('#colSel').innerHTML = cols.slice(0, NCOLS).map((v,i) =>
     '<label class="f">' + (i+1) + '列目<select data-col="' + i + '">' +
     COL_KINDS.map(([k,l]) => '<option value="' + k + '"' + (k === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label>').join('');
-  const ex = { no:'33', team:'チームアサン', cls:'KT', hc:'2', skip:'…' };
+  const ex = { no:'32', team:'チームアサン', cls:'KT', hc:'2', skip:'…' };
   $('#ePaste').placeholder = '例：\n' + colOrder().map(k => ex[k]).join('\t') + '\n' + colOrder().map(k => ({ no:'7', team:'四国レーシング', cls:'KR', hc:'0', skip:'…' })[k]).join('\t');
 }
 $('#colSel').addEventListener('change', e => {
