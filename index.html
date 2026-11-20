@@ -80,9 +80,7 @@ textarea{font:15px/1.5 var(--sans);background:var(--panel2);color:var(--fg);bord
   #print th{background:#e8e8e8}
   #print td{font-family:var(--mono)}
   #print td.note{font-family:var(--sans);color:#000}
-  #print tr.best td.t{color:#000;text-decoration:underline}
-  #print tr.est td.t{color:#555;font-style:italic}
-  #print tr{break-inside:avoid}
+  #print tr.best td.t{color:#000;text-decoration:underline}  #print tr{break-inside:avoid}
   #print .foot{margin-top:8pt;font-size:8.5pt;color:#555}
 }
 header h1 span{color:var(--accent)}
@@ -130,7 +128,6 @@ th{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.05em;positi
 td{font-family:var(--mono);font-size:14px}
 td.note{font-family:var(--sans);font-size:12px;color:var(--warn);text-align:left;white-space:normal}
 tr.best td.t{color:var(--good);font-weight:700}
-tr.est td.t{font-style:italic;color:var(--muted)}
 tr.est td.note{color:var(--muted)}
 td.t{font-weight:600}
 td .x{padding:2px 8px;font-size:12px}
@@ -240,8 +237,12 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
         <canvas id="ocr"></canvas>
         <p class="hint" id="ocrInfo">白地に黒文字で数字がくっきり出ていれば正常です。</p>
         <div class="row">
+          <label class="f">読み取り精度
+            <select id="thMode"><option value="auto">自動</option><option value="manual">手動</option></select>
+          </label>
           <label class="f grow">文字の太さ（左=太く / 右=細く） <input type="range" id="offset" min="-60" max="60" step="2" value="0"></label>
         </div>
+        <p class="hint">自動：自車が見つからない・読めた台数が少ないときだけ、文字の太さを変えて読み直し、いちばんよく読めた値にスライダーを動かします（そのぶん1回の読み取りが長くなります）。手動：スライダーの値だけで読みます。</p>
         <div class="tablewrap"><table id="rowsTbl"><thead><tr><th>Pos</th><th>No.</th><th style="text-align:left">チーム</th><th>クラス順位</th><th>Laps</th><th>最新通過</th><th>Total</th></tr></thead><tbody></tbody></table></div>
         <p class="hint">「クラス順位」は、エントリーリストのクラスごとに、モニターの並び順で数えた順位です。全車が枠に入っているときだけ正しくなります。</p>
         <pre id="raw"></pre>
@@ -349,9 +350,9 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
         <ul>
           <li>決まった間隔（初期値1秒）でモニターを読み、自車の行の周回数が増えたら1周分を記録します。</li>
           <li>同じ値を続けて読めたら確定します（初期値2回）。周回数が一度に何周も飛んだときは、念のため多めに確認します。</li>
-          <li>読み取りが抜けて周回数が飛んだときは、Total Time の差から抜けた周のラップを計算して埋めます（メモ欄に「補完」と表示）。1周抜けなら正確な値、2周以上抜けたときは平均で埋めるので「推定」と表示し、ベストや平均には入れません。Total Time が読めなかったときは、メモ欄に「○周 読み取り抜け」とだけ残します。</li>
+          <li>読み取りが抜けて周回数が飛んだときは、1周だけの抜けなら、Total Time の差から抜けた周のラップを計算して埋めます（メモ欄に「補完」と表示）。2周以上抜けたときや Total Time が読めなかったときは、メモ欄に「○周 読み取り抜け」とだけ残します。</li>
           <li><b>上の数字：</b>ラストラップ（ベストとの差）、周回、ベスト、直近5周の平均、順位（下にクラス順位）、記録数、最後に読んだ時刻（かっこ内は1回の読み取りにかかった秒数）。</li>
-          <li><b>「読み取りの様子・調整」</b>を開くと、白黒にした画像と、読めた全車の表が見られます。白地に黒い文字で数字がくっきり出ていれば正常です。文字がつぶれる・かすれるときは「文字の太さ」で調整します。</li>
+          <li><b>「読み取りの様子・調整」</b>を開くと、白黒にした画像と、読めた全車の表が見られます。白地に黒い文字で数字がくっきり出ていれば正常です。文字がつぶれる・かすれるときは「文字の太さ」で調整します。「読み取り精度」が<b>自動</b>のときは、自車が見つからない・読めた台数が少ないときにアプリが太さを変えて読み直し、スライダーも自動で動きます。思うように合わないときは<b>手動</b>にして自分で合わせてください。</li>
           <li>読み間違いで記録されたときは、ラップ記録の表の ✕ で消し、「手動で1周追加・修正」で入れ直せます。</li>
         </ul>
       </div>
@@ -510,7 +511,7 @@ const STORE = 'asanLapLogger.v1';
 const DEFAULT_QUAD = [[0.12,0.25],[0.88,0.25],[0.88,0.8],[0.12,0.8]];
 
 const state = { carNo:'', quad:DEFAULT_QUAD.map(p=>p.slice()), offset:0, interval:1000, confirmN:2, minLap:35, maxLap:600, laps:[], entries:[], tab:'rec',
-  entryCols:['no','team','cls','hc','skip'], heats:[], heatName:'', heatStart:null, hcOff:0, hcAt:null, viewPct:70, monCols:null };
+  entryCols:['no','team','cls','hc','skip'], heats:[], heatName:'', heatStart:null, hcOff:0, hcAt:null, viewPct:70, monCols:null, thMode:'auto' };
 try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s) Object.assign(state, s); } catch (e) {}
 if (!state.carNo) state.carNo = '32';   // our car; can still be changed in the 自車ゼッケン box
 function save(){ try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
@@ -532,7 +533,6 @@ function entryOf(no){ return no == null ? null : (state.entries.find(e => e.no =
 function teamLabel(e){ return e ? e.team + (e.cls ? ' (' + e.cls + ')' : '') : ''; }
 function hcOf(no){ const e = entryOf(no); return e && e.hc ? e.hc : 0; }
 const monOf = l => l.mon ?? l.lap;   // lap count shown on the monitor (drops once when the handicap is taken)
-const realLaps = L => L.filter(l => l.est !== 'avg');   // averaged fill-ins are left out of best / average
 function totalSec(t){
   const m = String(t || '').match(/^(?:(\d{1,2}):)?(\d{1,2}):(\d{2})\.(\d{3})$/);
   return m ? (+(m[1] || 0))*3600 + +m[2]*60 + +m[3] + +m[4]/1000 : null;
@@ -724,10 +724,18 @@ function prepare(){
   for (let i=0;i<V.length;i++) hist[V[i]]++;
   const o = otsu3(hist, V.length);
   const base = o.mid > 0.2 ? o.t2 : Math.round((o.t1+o.t2)/2);
-  const T = Math.min(250, Math.max(5, base + state.offset));
   // integral image for a local-contrast check (handles glare gradients)
   const W1 = W+1, I = new Float64Array(W1*(H+1));
   for (let y=0;y<H;y++){ let row=0; for (let x=0;x<W;x++){ row += V[y*W+x]; I[(y+1)*W1+x+1] = I[y*W1+x+1] + row; } }
+  prep = { V, W, H, base, I };
+  return binarize(state.offset);
+}
+// Black-and-white image for OCR from the last prepared frame; `off` is the 文字の太さ slider value.
+// Kept separate so the auto mode can try other values on the same frame.
+let prep = null;
+function binarize(off){
+  const { V, W, H, base, I } = prep, W1 = W+1;
+  const T = Math.min(250, Math.max(5, base + off));
   const r = Math.max(8, Math.round(W/60)), P = 24;
   oc.width = W + 2*P; oc.height = H + 2*P;
   const out = octx.createImageData(oc.width, oc.height); out.data.fill(255);
@@ -742,7 +750,7 @@ function prepare(){
     }
   }
   octx.putImageData(out, 0, 0);
-  return { T, W, H };
+  return { T, W, H, off };
 }
 
 /* ---------- OCR ---------- */
@@ -883,9 +891,9 @@ function onReading(r){
 }
 
 /* ---------- missed laps ----------
-   When the lap count jumps (e.g. 12 -> 14), the missing lap time is
+   When exactly one lap is missed (e.g. 12 -> 14), its time is
    (Total now − Total at our last record) − the lap just read.
-   One missing lap is exact; with several only their sum is known, so each gets the average (marked as estimated). */
+   With two or more missed only their sum is known, so they are just noted as missed. */
 function steadyTotal(){
   let best = '', n = 0;
   for (const [t, c] of Object.entries(cand.tots))
@@ -898,7 +906,7 @@ function refineTotal(rec){
   const t = steadyTotal();
   if (!t || t === rec.total) return;
   rec.total = t;
-  if (rec.gapFrom != null) {
+  if (rec.gapFrom === rec.lap - 2) {
     const prev = state.laps.find(l => l.lap === rec.gapFrom);
     state.laps = state.laps.filter(l => !(l.est && l.lap > rec.gapFrom && l.lap < rec.lap));
     rec.note = prev ? fillMissed(prev, rec.lap, rec.sec, t, rec.at) : rec.note;
@@ -907,17 +915,14 @@ function refineTotal(rec){
 }
 function fillMissed(lastRec, real, lapSec, total, at){
   const k = real - lastRec.lap - 1;
+  if (k > 1) return k + '周 読み取り抜け';
   const t0 = totalSec(lastRec.total), t1 = totalSec(total);
-  if (t0 == null || t1 == null) return k + '周 読み取り抜け（Total Time が読めず補完なし）';
-  const sum = t1 - t0 - lapSec, each = sum / k;
-  if (!(each >= state.minLap && each <= state.maxLap)) return k + '周 読み取り抜け（Total Time の差が合わず補完なし）';
-  for (let i = 1; i <= k; i++) {
-    const lap = lastRec.lap + i;
-    const mon = state.hcOff && lap > state.hcAt ? lap - state.hcOff : lap;
-    addLap({ lap, mon, sec:each, pos:null, cpos:null, cls:'', total: k === 1 ? fmtTotal(t1 - lapSec) : '', at,
-             est: k === 1 ? 'calc' : 'avg',
-             note: k === 1 ? '補完（Total Time の差から算出）' : '補完（抜けた' + k + '周の平均・推定）' }, true);
-  }
+  if (t0 == null || t1 == null) return '1周 読み取り抜け（Total Time が読めず補完なし）';
+  const sec = t1 - t0 - lapSec;
+  if (!(sec >= state.minLap && sec <= state.maxLap)) return '1周 読み取り抜け（Total Time の差が合わず補完なし）';
+  const lap = lastRec.lap + 1;
+  const mon = state.hcOff && lap > state.hcAt ? lap - state.hcOff : lap;
+  addLap({ lap, mon, sec, pos:null, cpos:null, cls:'', total:fmtTotal(t1 - lapSec), at, est:'calc', note:'補完（Total Time の差から算出）' }, true);
   return '';
 }
 
@@ -970,6 +975,26 @@ function addLap(l, quiet){
   if (!quiet) { save(); renderLaps(); }
 }
 
+/* ---------- auto 文字の太さ ----------
+   Normally one read at the current value (same speed as manual). Only when our car is missing or
+   clearly fewer rows than usual were read, the same frame is read again at shifted values. */
+const AUTO_MAX_MS = 6000, AUTO_PAUSE_MS = 10000;
+let autoRef = 0, autoPauseUntil = 0;   // autoRef: row count of recent good reads (decays slowly)
+// near values first (light changes slowly), then the rest of the range; skip values close to one already tried
+function autoCandidates(start){
+  const list = [start - 16, start + 16, start - 32, start + 32, -40, 0, 40, -60, 60], out = [start];
+  for (let v of list) { v = Math.max(-60, Math.min(60, v)); if (out.every(u => Math.abs(u - v) >= 12)) out.push(v); }
+  return out.slice(1);
+}
+function scoreRead(rows){
+  let s = rows.length;
+  if (pickMine(rows)) s += 10;
+  if (state.entries.length) s += rows.reduce((a, r) => a + (r.no == null ? 0 : entryOf(r.no) ? 0.5 : -0.5), 0);
+  s -= rows.filter(r => r.lapSec < state.minLap || r.lapSec > state.maxLap).length;
+  return s;
+}
+function poorRead(res){ return !res.mine || res.rows.length < autoRef * 0.7; }
+
 /* ---------- scan loop ---------- */
 let running = false, busy = false, timer = null;
 async function scanOnce(){
@@ -978,11 +1003,27 @@ async function scanOnce(){
   try {
     const t0 = performance.now();
     const w = await getWorker();
-    const info = prepare();
-    const { data } = await w.recognize(oc);
-    const rows = parseText(data.text);
-    showDebug(data.text, rows, info);
-    const mine = pickMine(rows);
+    const read = async info => { const { data } = await w.recognize(oc); const rows = parseText(data.text); return { info, text:data.text, rows, mine:pickMine(rows), score:scoreRead(rows) }; };
+    let res = await read(prepare()), tried = 1;
+    if (state.thMode === 'auto' && state.carNo && poorRead(res) && performance.now() > autoPauseUntil) {
+      // read the same frame again at other 文字の太さ values and keep the best one
+      const start = state.offset;
+      for (const off of autoCandidates(start)) {
+        if (performance.now() - t0 > AUTO_MAX_MS) break;
+        const r2 = await read(binarize(off)); tried++;
+        if (r2.score > res.score) res = r2;
+        if (!poorRead(res)) break;
+      }
+      if (res.info.off !== start) {
+        binarize(res.info.off);   // show the image that was used
+        state.offset = res.info.off; $('#offset').value = state.offset; save();
+      }
+      if (poorRead(res)) autoPauseUntil = performance.now() + AUTO_PAUSE_MS;   // e.g. our car is off the monitor: don't slow every read
+      res.info.auto = { from:start, to:res.info.off, tried };
+    }
+    if (res.mine) autoRef = Math.max(res.rows.length, autoRef * 0.95);
+    const { rows, mine, info } = res;
+    showDebug(res.text, rows, info);
     const secs = ((performance.now()-t0)/1000).toFixed(1);
     $('#vSeen').textContent = clock(new Date()) + ' (' + secs + 's)';
     if (!state.carNo) setMsg('自車ゼッケンを入力してください。', 'warn');
@@ -1015,7 +1056,9 @@ $('#btnOnce').addEventListener('click', scanOnce);
 
 function showDebug(text, rows, info){
   $('#raw').textContent = text;
-  $('#ocrInfo').textContent = 'しきい値 ' + info.T + ' / 処理画像 ' + info.W + '×' + info.H + 'px / 読めた行 ' + rows.length;
+  const a = info.auto;
+  $('#ocrInfo').textContent = 'しきい値 ' + info.T + ' / 処理画像 ' + info.W + '×' + info.H + 'px / 読めた行 ' + rows.length +
+    (a ? ' / 自動調整：' + (a.to !== a.from ? '文字の太さ ' + a.from + ' → ' + a.to : 'よりよい値なし') + '（' + a.tried + '回読んだ）' : '');
   const n = parseInt(state.carNo, 10);
   const hasList = state.entries.length > 0;
   $('#rowsTbl tbody').innerHTML = rows.map(r => {
@@ -1030,10 +1073,10 @@ function showDebug(text, rows, info){
 /* ---------- render laps ---------- */
 const cposStr = l => l.cpos ? (l.cls ? l.cls + ' ' : '') + 'P' + l.cpos : '';
 function lapRowsHTML(L, opt){
-  const R = realLaps(L), best = R.length ? Math.min(...R.map(l => l.sec)) : null;
+  const best = L.length ? Math.min(...L.map(l => l.sec)) : null;
   const list = opt.desc ? L.slice().reverse() : L;
-  return list.map(l => { const avg = l.est === 'avg', isBest = !avg && l.sec === best; return (
-    '<tr class="' + (isBest ? 'best' : '') + (l.est ? ' est' : '') + '"><td>' + l.lap + '</td><td>' + monOf(l) + '</td><td class="t">' + fmt(l.sec) + '</td><td>' + (avg ? '推定' : isBest ? 'BEST' : fmtDelta(l.sec - best)) +
+  return list.map(l => { const isBest = l.sec === best; return (
+    '<tr class="' + (isBest ? 'best' : '') + (l.est ? ' est' : '') + '"><td>' + l.lap + '</td><td>' + monOf(l) + '</td><td class="t">' + fmt(l.sec) + '</td><td>' + (isBest ? 'BEST' : fmtDelta(l.sec - best)) +
     '</td><td>' + (l.pos != null ? 'P' + l.pos : '') + '</td><td>' + esc(cposStr(l)) + '</td><td>' + esc(l.total || '') + '</td><td>' + clock(new Date(l.at)) +
     '</td><td class="note">' + esc(l.note || '') + '</td>' +
     (opt.del ? '<td><button class="x danger" data-lap="' + l.lap + '" aria-label="' + l.lap + '周を削除">✕</button></td>' : '') + '</tr>'); }).join('');
@@ -1041,12 +1084,11 @@ function lapRowsHTML(L, opt){
 const LAP_HEAD = '<tr><th>周</th><th>モニター</th><th>ラップ</th><th>ベスト差</th><th>順位</th><th>クラス順位</th><th>Total</th><th>記録時刻</th><th style="text-align:left">メモ</th></tr>';
 function heatStats(L){
   if (!L.length) return { best:null, avg:null, count:0, last:null };
-  const R = realLaps(L);
-  return { best:Math.min(...R.map(l => l.sec)), avg:R.reduce((s,l) => s + l.sec, 0) / R.length, count:L.length, last:L[L.length-1] };
+  return { best:Math.min(...L.map(l => l.sec)), avg:L.reduce((s,l) => s + l.sec, 0) / L.length, count:L.length, last:L[L.length-1] };
 }
 function renderLaps(){
-  const L = state.laps, R = realLaps(L);
-  const best = R.length ? Math.min(...R.map(l => l.sec)) : null;
+  const L = state.laps;
+  const best = L.length ? Math.min(...L.map(l => l.sec)) : null;
   const hc = hcOf(parseInt(state.carNo, 10));
   $('#lapTbl tbody').innerHTML = lapRowsHTML(L, { desc:true, del:true });
   $('#hcStatus').textContent = hcText({ hc, hcOff:state.hcOff, hcAt:state.hcAt });
@@ -1059,7 +1101,7 @@ function renderLaps(){
   $('#vLapAdj').textContent = !last ? '' : state.hcOff ? 'モニター ' + monOf(last) + '周' : hc ? 'ハンデ' + hc + '周 未消化' : '';
   $('#vBest').textContent = best != null ? fmt(best) : '—';
   $('#vCount').textContent = L.length;
-  const r5 = R.slice(-5);
+  const r5 = L.slice(-5);
   $('#vAvg').textContent = r5.length ? fmt(r5.reduce((s,l) => s + l.sec, 0) / r5.length) : '—';
   const d = $('#vDelta');
   d.textContent = last ? (last.sec === best ? 'ベスト更新' : 'ベスト比 ' + fmtDelta(last.sec - best)) : '';
@@ -1129,7 +1171,7 @@ function pdfHeat(h, say){
     '<span>ベスト <b>' + fmt(s.best) + '</b></span><span>平均 <b>' + fmt(s.avg) + '</b></span><span>記録数 <b>' + s.count + '</b></span>' +
     (s.last.pos != null ? '<span>最終順位 <b>P' + s.last.pos + '</b>' + (s.last.cpos ? '（' + esc(cposStr(s.last)) + '）' : '') + '</span>' : '') + '</div>' +
     '<table><thead>' + LAP_HEAD + '</thead><tbody>' + lapRowsHTML(h.laps, { desc:false, del:false }) + '</tbody></table>' +
-    '<p class="foot">阿讃ラップロガーで記録（モニターの文字認識による自動記録。読み取り抜けの周は Total Time の差から補完し、メモ欄に表示。斜体は推定値）</p>';
+    '<p class="foot">阿讃ラップロガーで記録（モニターの文字認識による自動記録。1周だけの読み取り抜けは Total Time の差から補完。抜けと補完はメモ欄に表示）</p>';
   const title = document.title;
   document.title = fileBase(h);   // becomes the default PDF file name
   const restore = () => { document.title = title; window.removeEventListener('afterprint', restore); };
@@ -1361,6 +1403,7 @@ const bind = (id, key, conv) => { const el = $('#' + id); el.value = state[key];
 bind('interval', 'interval', Number); bind('confirmN', 'confirmN', Number);
 bind('minLap', 'minLap', Number); bind('maxLap', 'maxLap', Number);
 bind('viewPct', 'viewPct', Number); $('#viewPct').addEventListener('change', resizeView);
+bind('thMode', 'thMode', String);
 
 /* ---------- fullscreen + landscape lock (Android Chrome) ---------- */
 const btnFull = $('#btnFull');
