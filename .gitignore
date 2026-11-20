@@ -1,0 +1,6 @@
+# モニターの写真は公開しない（他チームの名前が写る・容量が大きい）
+sample-monitor-*.jpg
+*.jpg
+*.png
+# エディタの設定
+*.code-workspace

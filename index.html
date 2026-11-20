@@ -1,0 +1,1075 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1418">
+<meta name="robots" content="noindex,nofollow">
+<title>阿讃ラップロガー</title>
+<style>
+/* Layout: pit-wall tool, one column on phones. Dashboard numbers on top, camera framing, lap log below.
+   Palette mirrors the circuit timing screen (dark board, yellow figures). Single dark theme by choice. */
+:root{
+  --bg:#0f1418; --panel:#172027; --panel2:#1d2830; --line:#2b3842;
+  --fg:#e9eef2; --muted:#8c9ba7;
+  --accent:#f2c230; --accent-ink:#1a1400;
+  --good:#3ddc84; --warn:#ffa94d; --bad:#ff6b6b;
+  --mono:ui-monospace,"SF Mono","Roboto Mono",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--sans);
+  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));
+  padding-bottom:calc(40px + env(safe-area-inset-bottom,0px))}
+.wrap{max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;align-items:center;gap:10px;
+  padding:calc(10px + env(safe-area-inset-top,0px)) 0 10px;border-bottom:1px solid var(--line)}
+header{flex-wrap:wrap}
+header h1{font-size:17px;margin:0;letter-spacing:.02em;flex:1;min-width:0}
+.tabs{display:flex;gap:4px;width:100%}
+.tabs button{flex:1;justify-content:center;padding:8px;background:transparent;border-color:transparent;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--panel2);color:var(--accent);border-color:var(--line)}
+.page{display:flex;flex-direction:column;gap:14px}
+textarea{font:15px/1.5 var(--sans);background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;resize:vertical}
+#entTbl td{text-align:left;font-family:var(--sans)}
+#entTbl td:first-child,#entTbl th:first-child{text-align:right;font-family:var(--mono);width:4em}
+#entTbl tbody tr{cursor:pointer}
+#entTbl td:last-child{text-align:right;width:1%}
+.team{color:var(--fg);font-family:var(--sans);text-align:left}
+.unk{color:var(--warn);font-family:var(--sans);text-align:left}
+.tile .k2{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.heat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.heat .hd{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.heat .hd b{font-size:16px}
+.heat .meta{font-size:12.5px;color:var(--muted)}
+.heat details{background:var(--panel)}
+.colsel{display:flex;gap:6px;flex-wrap:wrap}
+.colsel label.f{flex:1;min-width:90px}
+#print{display:none}
+@media print{
+  @page{margin:12mm}
+  html,body{background:#fff!important;color:#000;padding:0!important}
+  .wrap{display:none!important}
+  #print{display:block!important;color:#000;font:10.5pt/1.45 var(--sans)}
+  #print h1{font-size:16pt;margin:0 0 2pt}
+  #print .meta{margin:0 0 8pt;font-size:10pt}
+  #print .sum{display:flex;gap:16pt;flex-wrap:wrap;margin:0 0 10pt;font-size:10.5pt}
+  #print .sum b{font-family:var(--mono);font-size:12pt}
+  #print table{width:100%;border-collapse:collapse}
+  #print th,#print td{border:1px solid #888;padding:2pt 6pt;color:#000;background:#fff;position:static;font-size:9.5pt}
+  #print th{background:#e8e8e8}
+  #print td{font-family:var(--mono)}
+  #print td.note{font-family:var(--sans);color:#000}
+  #print tr.best td.t{color:#000;text-decoration:underline}
+  #print tr{break-inside:avoid}
+  #print .foot{margin-top:8pt;font-size:8.5pt;color:#555}
+}
+header h1 span{color:var(--accent)}
+.pill{font:600 12px/1 var(--sans);padding:6px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.pill.run{color:var(--accent-ink);background:var(--good);border-color:var(--good)}
+.pill.err{color:#fff;background:var(--bad);border-color:var(--bad)}
+
+.dash{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+.tile .k{font-size:11px;color:var(--muted);letter-spacing:.06em}
+.tile .v{font:700 22px/1.2 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile.big{grid-column:span 3;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.tile.big .v{font-size:44px;color:var(--accent)}
+.tile.big .sub{font:600 15px var(--mono);color:var(--muted)}
+.tile .v.good{color:var(--good)} .tile .v.slow{color:var(--warn)}
+@keyframes flash{from{background:#3a3214}to{background:var(--panel)}}
+.tile.flash{animation:flash 1.2s ease-out}
+
+section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+section h2{font-size:13px;margin:0;color:var(--muted);letter-spacing:.08em;font-weight:600}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+input,select,textarea{font:16px var(--sans);background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
+input#carNo{font:700 26px var(--mono);width:110px;text-align:center;color:var(--accent)}
+button,.btn{font:600 15px var(--sans);background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:10px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+button:focus-visible,input:focus-visible,select:focus-visible,.btn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.stop{background:var(--bad);color:#fff;border-color:var(--bad)}
+button.danger{color:var(--bad)}
+button:disabled{opacity:.45;cursor:default}
+.btn input{display:none}
+.grow{flex:1}
+
+.viewwrap{position:relative;background:#000;border-radius:8px;overflow:hidden;min-height:120px}
+#view{display:block;width:100%;touch-action:none}
+.empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);padding:16px;font-size:14px;pointer-events:none}
+.hint{font-size:12.5px;color:var(--muted);margin:0}
+.msg{font-size:13px;padding:8px 10px;border-radius:8px;background:var(--panel2);border-left:3px solid var(--line);margin:0}
+.msg.bad{border-left-color:var(--bad)} .msg.good{border-left-color:var(--good)} .msg.warn{border-left-color:var(--warn)}
+
+.tablewrap{overflow-x:auto;min-width:0}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.05em;position:sticky;top:0;background:var(--panel)}
+td{font-family:var(--mono);font-size:14px}
+td.note{font-family:var(--sans);font-size:12px;color:var(--warn);text-align:left;white-space:normal}
+tr.best td.t{color:var(--good);font-weight:700}
+td.t{font-weight:600}
+td .x{padding:2px 8px;font-size:12px}
+.lapscroll{max-height:60vh;overflow:auto}
+
+details{background:var(--panel2);border-radius:8px;padding:8px 10px}
+details summary{cursor:pointer;font-size:13px;color:var(--muted)}
+details[open] summary{margin-bottom:8px}
+#ocr{width:100%;background:#fff;border-radius:4px;display:block}
+pre{font:12px/1.4 var(--mono);white-space:pre-wrap;word-break:break-all;margin:0;max-height:220px;overflow:auto;color:var(--muted)}
+#video{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
+@media (max-width:420px){.tile.big .v{font-size:38px}.tile .v{font-size:19px}}
+@media (prefers-reduced-motion:reduce){.tile.flash{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span>阿讃</span> ラップロガー</h1>
+    <span id="state" class="pill">停止中</span>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="rec" aria-selected="true">記録</button>
+      <button role="tab" data-tab="hist" aria-selected="false">履歴</button>
+      <button role="tab" data-tab="set" aria-selected="false">設定</button>
+    </nav>
+  </header>
+
+  <div class="page" id="pageRec">
+  <div class="dash" id="dash">
+    <div class="tile big" id="tLast">
+      <div><div class="k">ラストラップ</div><div class="v" id="vLast">—</div></div>
+      <div class="sub" id="vDelta"></div>
+    </div>
+    <div class="tile"><div class="k">周回</div><div class="v" id="vLap">—</div><div class="k2" id="vLapAdj"></div></div>
+    <div class="tile"><div class="k">ベスト</div><div class="v good" id="vBest">—</div></div>
+    <div class="tile"><div class="k">直近5周 平均</div><div class="v" id="vAvg">—</div></div>
+    <div class="tile"><div class="k">順位</div><div class="v" id="vPos">—</div><div class="k2" id="vPosAdj"></div></div>
+    <div class="tile"><div class="k">記録数</div><div class="v" id="vCount">0</div></div>
+    <div class="tile"><div class="k">最終読取</div><div class="v" id="vSeen" style="font-size:15px">—</div></div>
+  </div>
+
+  <section>
+    <h2>1. 準備</h2>
+    <div class="row">
+      <label class="f">自車ゼッケン
+        <input id="carNo" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="例 33">
+        <span id="carTeam"></span>
+      </label>
+      <div class="row grow">
+        <button id="btnCam" class="primary">カメラ開始</button>
+        <label class="btn">画像で試す<input type="file" id="file" accept="image/*"></label>
+      </div>
+    </div>
+    <label class="f" id="zoomBox" hidden>ズーム <input type="range" id="zoom"></label>
+    <p class="msg" id="msg">自車ゼッケンを入れて「カメラ開始」。PCでは「画像で試す」で撮影済みの写真でも確認できます。</p>
+    <div class="msg warn" id="hcAsk" hidden>
+      <p style="margin:0 0 8px" id="hcAskText"></p>
+      <div class="row">
+        <label class="f">減算した周回数<input id="hcAskN" inputmode="numeric" style="width:80px"></label>
+        <button id="hcAskYes" class="primary">ハンデ減算として記録を続ける</button>
+        <button id="hcAskNew">新しいヒート（保存して次へ）</button>
+        <button id="hcAskNo">読み間違い（無視）</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. 読み取り範囲</h2>
+    <div class="viewwrap" id="viewwrap">
+      <canvas id="view"></canvas>
+      <div class="empty" id="viewEmpty">カメラか画像を開くと、ここにモニターが映ります</div>
+      <video id="video" playsinline muted></video>
+    </div>
+    <p class="hint">黄色い枠の4隅をドラッグして、表の「Pos.」列の左端から「Total Time」列の右端まで、全車の行が入るように合わせます。見出し行は入っても構いません。</p>
+    <div class="row">
+      <button id="btnRun" class="primary grow" disabled>自動記録 開始</button>
+      <button id="btnOnce" disabled>1回だけ読む</button>
+      <button id="btnResetQuad">枠を戻す</button>
+    </div>
+    <details>
+      <summary>読み取りの様子・調整</summary>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <canvas id="ocr"></canvas>
+        <p class="hint" id="ocrInfo">白地に黒文字で数字がくっきり出ていれば正常です。</p>
+        <div class="row">
+          <label class="f grow">文字の太さ（左=太く / 右=細く） <input type="range" id="offset" min="-60" max="60" step="2" value="0"></label>
+        </div>
+        <div class="tablewrap"><table id="rowsTbl"><thead><tr><th>Pos</th><th>No.</th><th style="text-align:left">チーム</th><th>クラス順位</th><th>Laps</th><th>最新通過</th><th>Total</th></tr></thead><tbody></tbody></table></div>
+        <p class="hint">「クラス順位」は、エントリーリストのクラスごとに、モニターの並び順で数えた順位です。全車が枠に入っているときだけ正しくなります。</p>
+        <pre id="raw"></pre>
+      </div>
+    </details>
+  </section>
+
+  <section>
+    <h2>3. ラップ記録</h2>
+    <div class="row">
+      <label class="f grow">ヒート名<input id="heatName" placeholder="ヒート1"></label>
+    </div>
+    <div class="row">
+      <button id="btnCopy">Excel用にコピー</button>
+      <button id="btnCsv">CSV保存</button>
+      <button id="btnPdf">PDF出力</button>
+    </div>
+    <div class="row">
+      <button id="btnSaveHeat" class="primary grow">ヒートを保存して次へ</button>
+      <button id="btnClear" class="danger">保存せず全消去</button>
+    </div>
+    <p class="hint">ヒートが終わったら「ヒートを保存して次へ」を押します。記録は［履歴］タブに残り、あとからPDFやExcelで出せます。</p>
+    <div class="row" id="hcRow">
+      <span class="hint grow" id="hcStatus"></span>
+      <button id="hcUndo" class="danger" hidden>減算を取り消す</button>
+    </div>
+    <p class="hint">「周」はアプリが数える実周回で、減りません。「モニター」は画面に出ている周回数で、ハンデが引かれると戻ります。</p>
+    <div class="tablewrap lapscroll">
+      <table id="lapTbl">
+        <thead><tr><th>周</th><th>モニター</th><th>ラップ</th><th>ベスト差</th><th>順位</th><th>クラス順位</th><th>Total</th><th>記録時刻</th><th style="text-align:left">メモ</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="hint" id="lapEmpty">まだ記録がありません。自動記録を始めると、自車の周回数が増えるたびにここへ1行ずつ追加されます。</p>
+    <details>
+      <summary>手動で1周追加・修正</summary>
+      <div class="row">
+        <label class="f">周<input id="mLap" type="number" style="width:80px"></label>
+        <label class="f">ラップ<input id="mTime" placeholder="53.412 / 1:02.345" style="width:150px"></label>
+        <button id="btnAdd">追加（同じ周は上書き）</button>
+      </div>
+    </details>
+  </section>
+  </div>
+
+  <div class="page" id="pageHist" hidden>
+  <section>
+    <h2>保存したヒート</h2>
+    <p class="hint">「ヒートを保存して次へ」で保存した記録です。この端末のブラウザの中に保存されます。ブラウザのデータを消すと記録も消えるので、大事な記録はPDFかCSVでも残してください。</p>
+    <div id="heatList" style="display:flex;flex-direction:column;gap:10px"></div>
+    <p class="hint" id="histEmpty">まだ保存したヒートはありません。</p>
+  </section>
+  </div>
+
+  <div class="page" id="pageSet" hidden>
+  <section>
+    <h2>エントリーリスト</h2>
+    <p class="hint">当日配られるエントリーリストを登録すると、読み取り結果にチーム名が出ます。リストにないゼッケンは番号だけ表示します。登録内容はこの端末の中だけに保存されます。</p>
+    <div class="row">
+      <label class="f">ゼッケン<input id="eNo" inputmode="numeric" maxlength="3" style="width:80px" enterkeyhint="next"></label>
+      <label class="f grow">チーム名<input id="eTeam" enterkeyhint="done"></label>
+      <label class="f">クラス<select id="eCls"><option value="">—</option><option>KR</option><option>KT</option><option>KN1</option></select></label>
+      <label class="f">ハンデ(周)<input id="eHc" inputmode="numeric" maxlength="3" style="width:80px" placeholder="0"></label>
+      <button id="eAdd" class="primary">追加</button>
+    </div>
+    <p class="hint">同じゼッケンで追加すると上書きします。表の行を押すと、上の欄に呼び出して直せます。</p>
+    <p class="msg" id="entMsg" hidden></p>
+    <div class="tablewrap lapscroll">
+      <table id="entTbl"><thead><tr><th>No.</th><th>チーム名</th><th>クラス</th><th>ハンデ</th><th></th></tr></thead><tbody></tbody></table>
+    </div>
+    <p class="hint" id="entEmpty">まだ登録がありません。</p>
+    <div class="row">
+      <button id="eCopy">Excel用にコピー</button>
+      <button id="eClear" class="danger">リストを全消去</button>
+    </div>
+    <details>
+      <summary>まとめて貼り付け（Excel・メモ帳から）</summary>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <p class="hint">貼り付ける表の列の並びを、左から順に選びます。不要な列は「使わない」にします。</p>
+        <div class="colsel" id="colSel"></div>
+        <p class="hint">1行に1台です。区切りはタブ・カンマ・スペースのどれでも構いません。ゼッケンが数字でない行（見出し行など）は飛ばします。</p>
+        <textarea id="ePaste" rows="6"></textarea>
+        <div class="row"><button id="eImport" class="primary">取り込む</button></div>
+      </div>
+    </details>
+  </section>
+
+  <section>
+    <h2>読み取りの設定</h2>
+    <div class="row">
+      <label class="f">読み取り間隔
+        <select id="interval"><option value="500">0.5秒</option><option value="1000" selected>1秒</option><option value="2000">2秒</option><option value="4000">4秒</option></select>
+      </label>
+      <label class="f">確定に必要な一致回数
+        <select id="confirmN"><option value="1">1回</option><option value="2" selected>2回</option><option value="3">3回</option></select>
+      </label>
+      <label class="f">有効ラップ 最小(秒)<input id="minLap" type="number" value="35" style="width:80px"></label>
+      <label class="f">最大(秒)<input id="maxLap" type="number" value="600" style="width:80px"></label>
+    </div>
+  </section>
+
+  <section>
+    <h2>使い方のコツ</h2>
+    <ol class="steps">
+      <li>スマホを三脚やクランプでモニターの正面に固定し、充電しながら使います。画面は自動で消えないようにしています。</li>
+      <li>表がなるべく大きく映るように近づけるかズームします。文字の高さは画面の1/40以上が目安です。</li>
+      <li>反射が入ると読み間違えます。少し斜めから撮ってかまいません（枠の4隅で補正します）。</li>
+      <li>同じ値を2回続けて読んだら確定します。周回数が飛んだら「読み取り抜け」とメモします。</li>
+      <li>ヒートが終わったら「ヒートを保存して次へ」。記録は［履歴］タブに残ります。</li>
+      <li>PDF出力では印刷の画面が開きます。送信先（プリンター）で「PDFに保存」を選んでください。</li>
+    </ol>
+  </section>
+  </div>
+</div>
+<div id="print"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const STORE = 'asanLapLogger.v1';
+const DEFAULT_QUAD = [[0.12,0.25],[0.88,0.25],[0.88,0.8],[0.12,0.8]];
+
+const state = { carNo:'', quad:DEFAULT_QUAD.map(p=>p.slice()), offset:0, interval:1000, confirmN:2, minLap:35, maxLap:600, laps:[], entries:[], tab:'rec',
+  entryCols:['no','team','cls','hc','skip'], heats:[], heatName:'', heatStart:null, hcOff:0, hcAt:null };
+try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s) Object.assign(state, s); } catch (e) {}
+function save(){ try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
+
+/* ---------- helpers ---------- */
+function fmt(s){
+  if (s == null || isNaN(s)) return '—';
+  const ms = Math.round(s*1000), m = Math.floor(ms/60000), ss = ((ms%60000)/1000).toFixed(3);
+  return m ? m + ':' + ss.padStart(6,'0') : ss;
+}
+function fmtDelta(d){ if (d == null || isNaN(d)) return ''; return (d >= 0 ? '+' : '−') + Math.abs(d).toFixed(3); }
+function clock(d){ return d.toLocaleTimeString('ja-JP',{hour12:false}); }
+function setMsg(t, kind){ const m=$('#msg'); m.textContent=t; m.className='msg'+(kind?' '+kind:''); }
+function setState(t, kind){ const p=$('#state'); p.textContent=t; p.className='pill'+(kind?' '+kind:''); }
+function lastLapNo(){ return state.laps.length ? state.laps[state.laps.length-1].lap : null; }
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const half = s => String(s).replace(/[０-９Ａ-Ｚａ-ｚ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/　/g, ' ');
+function entryOf(no){ return no == null ? null : (state.entries.find(e => e.no === no) || null); }
+function teamLabel(e){ return e ? e.team + (e.cls ? ' (' + e.cls + ')' : '') : ''; }
+function hcOf(no){ const e = entryOf(no); return e && e.hc ? e.hc : 0; }
+const monOf = l => l.mon ?? l.lap;   // lap count shown on the monitor (drops once when the handicap is taken)
+const pad2 = n => String(n).padStart(2,'0');
+function ymd(iso){ const d = iso ? new Date(iso) : new Date(); return d.getFullYear() + '/' + pad2(d.getMonth()+1) + '/' + pad2(d.getDate()); }
+async function copyText(text){
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch (e) {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (_) {}
+    ta.remove(); return ok;
+  }
+}
+
+/* ---------- source (camera or image) ---------- */
+const view = $('#view'), vctx = view.getContext('2d');
+const video = $('#video');
+let srcEl = null, srcW = 0, srcH = 0, stream = null, track = null, dpr = 1;
+
+function resizeView(){
+  if (!srcEl) return;
+  const cw = $('#viewwrap').clientWidth;
+  if (!cw) return;
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const ch = cw * srcH / srcW;
+  view.width = Math.round(cw*dpr); view.height = Math.round(ch*dpr);
+  view.style.height = ch + 'px';
+  $('#viewEmpty').hidden = true;
+  $('#btnRun').disabled = false; $('#btnOnce').disabled = false;
+}
+window.addEventListener('resize', resizeView);
+
+$('#btnCam').addEventListener('click', async () => {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setMsg('このブラウザではカメラが使えません。https のURLで開いているか確認してください。', 'bad'); return;
+  }
+  try {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = await navigator.mediaDevices.getUserMedia({ audio:false, video:{ facingMode:{ideal:'environment'}, width:{ideal:2560}, height:{ideal:1440} } });
+  } catch (e) {
+    setMsg('カメラを開けませんでした（' + e.name + '）。カメラの許可と、https で開いているかを確認してください。', 'bad'); return;
+  }
+  video.srcObject = stream;
+  await video.play().catch(()=>{});
+  await new Promise(r => video.videoWidth ? r() : video.addEventListener('loadedmetadata', r, {once:true}));
+  srcEl = video; srcW = video.videoWidth; srcH = video.videoHeight;
+  track = stream.getVideoTracks()[0];
+  setupZoom(); resizeView(); keepAwake();
+  setMsg('カメラ ' + srcW + '×' + srcH + '。枠を表に合わせてから「自動記録 開始」を押してください。', 'good');
+});
+video.addEventListener('resize', () => { if (srcEl === video) { srcW = video.videoWidth; srcH = video.videoHeight; resizeView(); } });
+
+function setupZoom(){
+  const box = $('#zoomBox'), z = $('#zoom');
+  const caps = track && track.getCapabilities ? track.getCapabilities() : {};
+  if (!caps.zoom) { box.hidden = true; return; }
+  z.min = caps.zoom.min; z.max = caps.zoom.max; z.step = caps.zoom.step || 0.1;
+  const cur = track.getSettings().zoom; z.value = cur || caps.zoom.min;
+  box.hidden = false;
+  z.oninput = () => track.applyConstraints({ advanced:[{ zoom:+z.value }] }).catch(()=>{});
+}
+
+$('#file').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const img = new Image();
+  img.onload = () => {
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; track = null; $('#zoomBox').hidden = true; }
+    const sc = Math.min(1, 2560 / img.naturalWidth);
+    srcEl = img; srcW = Math.round(img.naturalWidth*sc); srcH = Math.round(img.naturalHeight*sc);
+    resizeView();
+    setMsg('画像を読み込みました。枠を表に合わせて「1回だけ読む」で確認できます。', 'good');
+  };
+  img.src = URL.createObjectURL(f);
+});
+
+/* ---------- wake lock ---------- */
+let wakeLock = null;
+async function keepAwake(){
+  try { if ('wakeLock' in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && (stream || running)) keepAwake(); });
+
+/* ---------- quad overlay ---------- */
+const LABELS = ['左上','右上','右下','左下'];
+let dragIdx = -1, lastDraw = 0;
+function drawView(t){
+  requestAnimationFrame(drawView);
+  if (!srcEl || t - lastDraw < 60) return;
+  lastDraw = t;
+  const W = view.width, H = view.height;
+  try { vctx.drawImage(srcEl, 0, 0, W, H); } catch (e) { return; }
+  const q = state.quad.map(([x,y]) => [x*W, y*H]);
+  vctx.fillStyle = 'rgba(0,0,0,.35)';
+  vctx.beginPath(); vctx.rect(0,0,W,H);
+  vctx.moveTo(q[0][0],q[0][1]); vctx.lineTo(q[3][0],q[3][1]); vctx.lineTo(q[2][0],q[2][1]); vctx.lineTo(q[1][0],q[1][1]); vctx.closePath();
+  vctx.fill('evenodd');
+  vctx.lineWidth = 2*dpr; vctx.strokeStyle = '#f2c230';
+  vctx.beginPath(); q.forEach((p,i) => i ? vctx.lineTo(p[0],p[1]) : vctx.moveTo(p[0],p[1])); vctx.closePath(); vctx.stroke();
+  vctx.font = (600*1) + ' ' + Math.round(12*dpr) + 'px system-ui,sans-serif';
+  q.forEach((p,i) => {
+    vctx.beginPath(); vctx.arc(p[0],p[1],13*dpr,0,Math.PI*2);
+    vctx.fillStyle = i === dragIdx ? '#ffffff' : 'rgba(242,194,48,.9)'; vctx.fill();
+    vctx.fillStyle = '#1a1400'; vctx.textAlign = 'center'; vctx.textBaseline = 'middle';
+    vctx.fillText(String(i+1), p[0], p[1]);
+    vctx.fillStyle = '#f2c230'; vctx.fillText(LABELS[i], p[0], p[1] + (i < 2 ? -24 : 24)*dpr);
+  });
+}
+requestAnimationFrame(drawView);
+
+function evPos(e){ const r = view.getBoundingClientRect(); return [(e.clientX-r.left)/r.width, (e.clientY-r.top)/r.height, r]; }
+view.addEventListener('pointerdown', e => {
+  if (!srcEl) return;
+  const [x,y,r] = evPos(e);
+  let best = -1, bd = 1e9;
+  state.quad.forEach(([qx,qy],i) => { const d = Math.hypot((qx-x)*r.width,(qy-y)*r.height); if (d < bd) { bd = d; best = i; } });
+  if (bd < 48) { dragIdx = best; view.setPointerCapture(e.pointerId); e.preventDefault(); }
+});
+view.addEventListener('pointermove', e => {
+  if (dragIdx < 0) return;
+  const [x,y] = evPos(e);
+  state.quad[dragIdx] = [Math.min(1,Math.max(0,x)), Math.min(1,Math.max(0,y))];
+});
+const endDrag = () => { if (dragIdx >= 0) { dragIdx = -1; save(); } };
+view.addEventListener('pointerup', endDrag); view.addEventListener('pointercancel', endDrag);
+$('#btnResetQuad').addEventListener('click', () => { state.quad = DEFAULT_QUAD.map(p=>p.slice()); save(); });
+
+/* ---------- image processing ---------- */
+const grab = document.createElement('canvas'), gctx = grab.getContext('2d', { willReadFrequently:true });
+const oc = $('#ocr'), octx = oc.getContext('2d');
+
+// Unit square -> quad (Heckbert). x = (a u + b v + c)/(g u + h v + 1)
+function sq2quad(p){
+  const [x0,y0]=p[0],[x1,y1]=p[1],[x2,y2]=p[2],[x3,y3]=p[3];
+  const dx1=x1-x2, dx2=x3-x2, dy1=y1-y2, dy2=y3-y2, sx=x0-x1+x2-x3, sy=y0-y1+y2-y3;
+  let g=0, h=0;
+  if (Math.abs(sx) > 1e-9 || Math.abs(sy) > 1e-9) { const den = dx1*dy2 - dx2*dy1; g = (sx*dy2 - dx2*sy)/den; h = (dx1*sy - sx*dy1)/den; }
+  return { a:x1-x0+g*x1, b:x3-x0+h*x3, c:x0, d:y1-y0+g*y1, e:y3-y0+h*y3, f:y0, g, h };
+}
+// 3-class Otsu: background / row stripe / text
+function otsu3(hist, total){
+  const P = new Float64Array(257), S = new Float64Array(257);
+  for (let i=0;i<256;i++){ P[i+1]=P[i]+hist[i]; S[i+1]=S[i]+i*hist[i]; }
+  let best=-1, t1=85, t2=170;
+  for (let a=1;a<255;a++) for (let b=a+1;b<256;b++){
+    const w0=P[a], w1=P[b]-P[a], w2=total-P[b];
+    if (!w0||!w1||!w2) continue;
+    const m0=S[a]/w0, m1=(S[b]-S[a])/w1, m2=(S[256]-S[b])/w2;
+    const v = w0*m0*m0 + w1*m1*m1 + w2*m2*m2;
+    if (v > best) { best=v; t1=a; t2=b; }
+  }
+  return { t1, t2, mid:(P[t2]-P[t1])/total };
+}
+
+function prepare(){
+  const sw = srcW, sh = srcH;
+  grab.width = sw; grab.height = sh;
+  gctx.drawImage(srcEl, 0, 0, sw, sh);
+  const px = gctx.getImageData(0, 0, sw, sh).data;
+  const q = state.quad.map(([x,y]) => [x*sw, y*sh]);
+  const dist = (a,b) => Math.hypot(a[0]-b[0], a[1]-b[1]);
+  const qw = Math.max(dist(q[0],q[1]), dist(q[3],q[2])), qh = Math.max(dist(q[0],q[3]), dist(q[1],q[2]));
+  const scale = Math.min(3, Math.max(0.5, 1800/qw));
+  const W = Math.max(50, Math.round(qw*scale)), H = Math.max(20, Math.round(qh*scale));
+  const m = sq2quad(q);
+  const V = new Uint8ClampedArray(W*H);
+  const mx = i => { const r=px[i], g=px[i+1], b=px[i+2]; return r>g ? (r>b?r:b) : (g>b?g:b); };
+  for (let y=0;y<H;y++){
+    const v = (y+0.5)/H;
+    for (let x=0;x<W;x++){
+      const u = (x+0.5)/W, den = m.g*u + m.h*v + 1;
+      const sx = (m.a*u + m.b*v + m.c)/den - 0.5, sy = (m.d*u + m.e*v + m.f)/den - 0.5;
+      let x0 = Math.floor(sx), y0 = Math.floor(sy);
+      let fx = sx - x0, fy = sy - y0;
+      if (x0 < 0) { x0 = 0; fx = 0; } else if (x0 > sw-2) { x0 = sw-2; fx = 1; }
+      if (y0 < 0) { y0 = 0; fy = 0; } else if (y0 > sh-2) { y0 = sh-2; fy = 1; }
+      const i00 = (y0*sw + x0)*4, i01 = i00 + sw*4;
+      V[y*W+x] = (mx(i00)*(1-fx) + mx(i00+4)*fx)*(1-fy) + (mx(i01)*(1-fx) + mx(i01+4)*fx)*fy;
+    }
+  }
+  const hist = new Float64Array(256);
+  for (let i=0;i<V.length;i++) hist[V[i]]++;
+  const o = otsu3(hist, V.length);
+  const base = o.mid > 0.2 ? o.t2 : Math.round((o.t1+o.t2)/2);
+  const T = Math.min(250, Math.max(5, base + state.offset));
+  // integral image for a local-contrast check (handles glare gradients)
+  const W1 = W+1, I = new Float64Array(W1*(H+1));
+  for (let y=0;y<H;y++){ let row=0; for (let x=0;x<W;x++){ row += V[y*W+x]; I[(y+1)*W1+x+1] = I[y*W1+x+1] + row; } }
+  const r = Math.max(8, Math.round(W/60)), P = 24;
+  oc.width = W + 2*P; oc.height = H + 2*P;
+  const out = octx.createImageData(oc.width, oc.height); out.data.fill(255);
+  for (let y=0;y<H;y++){
+    const ya = Math.max(0,y-r), yb = Math.min(H,y+r+1);
+    for (let x=0;x<W;x++){
+      const val = V[y*W+x];
+      if (val <= T) continue;
+      const xa = Math.max(0,x-r), xb = Math.min(W,x+r+1);
+      const mean = (I[yb*W1+xb] - I[ya*W1+xb] - I[yb*W1+xa] + I[ya*W1+xa]) / ((xb-xa)*(yb-ya));
+      if (val > mean + 6) { const k = ((y+P)*oc.width + x + P)*4; out.data[k]=out.data[k+1]=out.data[k+2]=0; }
+    }
+  }
+  octx.putImageData(out, 0, 0);
+  return { T, W, H };
+}
+
+/* ---------- OCR ---------- */
+let worker = null, workerLoading = null;
+function getWorker(){
+  if (worker) return Promise.resolve(worker);
+  if (workerLoading) return workerLoading;
+  if (typeof Tesseract === 'undefined') return Promise.reject(new Error('OCRエンジンを読み込めませんでした（ネット接続を確認）'));
+  setState('OCR準備中');
+  workerLoading = (async () => {
+    const w = await Tesseract.createWorker('eng', 1, {
+      logger: m => { if (m.status && m.progress != null && m.status !== 'recognizing text') setState('準備 ' + Math.round(m.progress*100) + '%'); }
+    });
+    await w.setParameters({ tessedit_pageseg_mode:'6', preserve_interword_spaces:'1', user_defined_dpi:'300' });
+    worker = w; return w;
+  })();
+  workerLoading.catch(() => { workerLoading = null; });
+  return workerLoading;
+}
+
+/* ---------- parsing ---------- */
+const LAP_RE = /^(?:(\d{1,2}):)?(\d{2})\.(\d{3})$/;
+const TOTAL_RE = /^(?:\d{1,2}:)?\d{1,2}:\d{2}\.\d{3}$/;
+function normTok(t){
+  t = t.replace(/,/g,'.').replace(/;/g,':').replace(/[“”"'`]/g,'');
+  if (/\d/.test(t) && /^[\dOoDQlI|iSsBZz:.]+$/.test(t))
+    t = t.replace(/[OoDQ]/g,'0').replace(/[lI|i]/g,'1').replace(/[Ss]/g,'5').replace(/B/g,'8').replace(/[Zz]/g,'2');
+  if (/^\d{5}$/.test(t)) t = t.slice(0,2) + '.' + t.slice(2);          // 53412 -> 53.412
+  if (/^\d:\d{5}$/.test(t)) t = t.slice(0,4) + '.' + t.slice(4);       // 1:09300 -> 1:09.300
+  t = t.replace(/^(\d{2})\.\.(\d{3})$/, '$1.$2');
+  return t;
+}
+function parseLine(line){
+  const toks = line.trim().split(/\s+/).map(normTok).filter(Boolean);
+  for (let i=1;i<toks.length;i++){
+    const lm = toks[i].match(LAP_RE); if (!lm) continue;
+    const lapsM = toks[i-1].match(/^(?:[A-Z]{1,3}\d?)?(\d{1,3})$/); if (!lapsM) continue;
+    const lapSec = (lm[1] ? +lm[1]*60 : 0) + +lm[2] + +lm[3]/1000;
+    const total = toks[i+1] && TOTAL_RE.test(toks[i+1]) ? toks[i+1] : '';
+    const ints = [];
+    for (let k=0;k<i-1 && ints.length<2;k++){
+      const tk = toks[k];
+      if (!/\d/.test(tk)) { if (ints.length) break; else continue; }
+      const mm = tk.match(/^\D{0,2}(\d{1,3})$/);
+      if (mm) ints.push(+mm[1]); else break;
+    }
+    return { pos: ints.length===2 ? ints[0] : null, no: ints.length===2 ? ints[1] : null, ints,
+             laps: +lapsM[1], lapSec, lapStr: fmt(lapSec), total, raw: line };
+  }
+  return null;
+}
+function parseText(text){
+  const rows = text.split('\n').map(parseLine).filter(Boolean);
+  // class position: count down the monitor order (Pos when read, otherwise line order) within each class from the entry list
+  const seen = {};
+  rows.map((r,i) => ({ r, k:r.pos ?? (i + 0.5) })).sort((a,b) => a.k - b.k).forEach(({ r }) => {
+    const e = entryOf(r.no ?? (r.ints.length === 1 ? r.ints[0] : null));
+    if (!e || !e.cls) return;
+    r.cls = e.cls; r.cpos = seen[e.cls] = (seen[e.cls] || 0) + 1;
+  });
+  return rows;
+}
+function pickMine(rows){
+  const n = parseInt(state.carNo, 10); if (isNaN(n)) return null;
+  let c = rows.filter(r => r.no === n);
+  if (!c.length) c = rows.filter(r => r.no == null && r.ints.length === 1 && r.ints[0] === n);
+  if (!c.length) return null;
+  const last = lastLapNo();
+  if (c.length > 1 && last != null) c.sort((a,b) => Math.abs(a.laps+state.hcOff-last) - Math.abs(b.laps+state.hcOff-last));
+  return c[0];
+}
+
+/* ---------- lap commit logic ---------- */
+let cand = null, candCount = 0, lowerCount = 0;
+function onReading(r){
+  if (r.lapSec < state.minLap || r.lapSec > state.maxLap) return 'ラップ値が範囲外 (' + r.lapStr + ')';
+  const key = r.laps + '|' + r.lapStr;
+  if (cand && cand.key === key) candCount++; else { cand = Object.assign({ key }, r); candCount = 1; }
+  const lastRec = state.laps[state.laps.length-1] || null;
+  const last = lastRec ? lastRec.lap : null;
+  // The monitor lap count drops once per heat when the handicap is taken (e.g. 8 -> 3), at an arbitrary moment.
+  if (lastRec && r.laps + state.hcOff < last) {
+    if (state.hcOff) {   // already taken this heat: probably a new heat
+      lowerCount++;
+      if (lowerCount >= 6) setMsg('記録より少ない周回数（モニター ' + r.laps + '周）が続けて表示されています。新しいヒートなら「ヒートを保存して次へ」を押してください。', 'warn');
+      return null;
+    }
+    if (candCount < state.confirmN + 1 || ignoreKey === key) return null;
+    const lastMon = monOf(lastRec), hc = hcOf(parseInt(state.carNo, 10));
+    const same = r.lapStr === fmt(lastRec.sec);              // same lap time = no crossing since the drop
+    const guess = same ? lastMon - r.laps : lastMon + 1 - r.laps;
+    if (hc > 0) {
+      const gain = r.laps + hc - last;                       // laps completed since our last record, if the drop is the handicap
+      if (gain >= 0 && gain <= 5 && (gain > 0 || same)) { applyHc(hc, 'auto'); return onReading(r); }
+    }
+    askDrop(r, hc > 0 ? hc : guess, lastMon);
+    return null;
+  }
+  lowerCount = 0;
+  const real = r.laps + state.hcOff;
+  if (last != null && real <= last) return null;
+  let need = state.confirmN;
+  if (last != null && real - last > 3) need += 2;     // big jump: be stricter
+  if (candCount < need) return null;
+  const note = last != null && real - last > 1 ? (real - last - 1) + '周 読み取り抜け' : '';
+  addLap({ lap:real, mon:r.laps, sec:r.lapSec, pos:r.pos, cpos:r.cpos ?? null, cls:r.cls || '', total:r.total, at:new Date().toISOString(), note });
+  const t = $('#tLast'); t.classList.remove('flash'); void t.offsetWidth; t.classList.add('flash');
+  return null;
+}
+
+/* ---------- handicap (lap deduction) ---------- */
+let pendingDrop = null, ignoreKey = null;
+function applyHc(n, how){
+  const lastRec = state.laps[state.laps.length-1];
+  state.hcOff = n; state.hcAt = lastRec ? lastRec.lap : 0;
+  if (lastRec) {
+    const m = monOf(lastRec);
+    lastRec.note = (lastRec.note ? lastRec.note + ' / ' : '') + 'このあとハンデ −' + n + '周（モニター ' + m + '→' + (m - n) + '）' + (how === 'manual' ? ' 手動' : '');
+  }
+  pendingDrop = null; $('#hcAsk').hidden = true;
+  save(); renderLaps();
+  setMsg('ハンデ −' + n + '周の減算を記録しました。以降は「実周回＝モニター周回＋' + n + '」で数えます。', 'good');
+}
+function askDrop(r, n, lastMon){
+  pendingDrop = { r, key:cand.key };
+  $('#hcAskText').textContent = 'モニターの周回数が ' + lastMon + '周 → ' + r.laps + '周 に減りました。' +
+    (hcOf(parseInt(state.carNo, 10)) ? '登録したハンデと数が合いません。' : 'エントリーリストにハンデが登録されていません。') + 'どれにあたりますか？';
+  $('#hcAskN').value = n;
+  $('#hcAsk').hidden = false;
+}
+$('#hcAskYes').addEventListener('click', () => {
+  const n = parseInt(half($('#hcAskN').value), 10);
+  if (!(n > 0)) { $('#hcAskN').focus(); return; }
+  const r = pendingDrop && pendingDrop.r;
+  applyHc(n, 'manual');
+  if (r) { candCount = 99; onReading(r); }
+});
+$('#hcAskNew').addEventListener('click', () => {
+  pendingDrop = null; $('#hcAsk').hidden = true;
+  if (state.laps.length) saveHeat(); else resetCurrent();
+});
+$('#hcAskNo').addEventListener('click', () => {
+  ignoreKey = pendingDrop ? pendingDrop.key : null;
+  pendingDrop = null; $('#hcAsk').hidden = true;
+});
+$('#hcUndo').addEventListener('click', e => {
+  if (!armed(e.currentTarget, '減算を取り消す', 'もう一度押すと取り消す')) return;
+  const rec = state.laps.find(l => l.lap === state.hcAt);
+  if (rec && rec.note) rec.note = rec.note.replace(/( \/ )?このあとハンデ −\d+周（[^）]*）( 手動)?/, '');
+  state.hcOff = 0; state.hcAt = null; ignoreKey = null;
+  save(); renderLaps(); setMsg('ハンデ減算を取り消しました。', 'good');
+});
+function addLap(l){
+  if (!state.heatStart) state.heatStart = l.at;
+  state.laps = state.laps.filter(x => x.lap !== l.lap);
+  state.laps.push(l); state.laps.sort((a,b) => a.lap - b.lap);
+  save(); renderLaps();
+}
+
+/* ---------- scan loop ---------- */
+let running = false, busy = false, timer = null;
+async function scanOnce(){
+  if (busy || !srcEl) return;
+  busy = true;
+  try {
+    const t0 = performance.now();
+    const w = await getWorker();
+    const info = prepare();
+    const { data } = await w.recognize(oc);
+    const rows = parseText(data.text);
+    showDebug(data.text, rows, info);
+    const mine = pickMine(rows);
+    const secs = ((performance.now()-t0)/1000).toFixed(1);
+    $('#vSeen').textContent = clock(new Date()) + ' (' + secs + 's)';
+    if (!state.carNo) setMsg('自車ゼッケンを入力してください。', 'warn');
+    else if (!mine) setMsg('表は ' + rows.length + '台分 読めましたが、No.' + state.carNo + ' が見つかりません。枠や文字の太さを調整してください。', rows.length ? 'warn' : 'bad');
+    else {
+      $('#vPos').textContent = mine.pos != null ? 'P' + mine.pos : '—';
+      $('#vPosAdj').textContent = mine.cpos ? mine.cls + ' P' + mine.cpos : '';
+      const why = onReading(mine);
+      const me = entryOf(mine.no ?? mine.ints[0]), nm = me && me.team ? ' ' + me.team : '';
+      setMsg(why ? 'No.' + state.carNo + nm + ' を検出しましたが記録しません: ' + why
+                 : 'No.' + state.carNo + nm + ' 検出: ' + mine.laps + '周 / ' + mine.lapStr + (mine.pos ? ' / P' + mine.pos : '') + '（' + rows.length + '台読取）', why ? 'warn' : 'good');
+    }
+    setState(running ? '記録中' : '停止中', running ? 'run' : '');
+  } catch (e) {
+    setState('エラー', 'err'); setMsg('読み取りエラー: ' + (e && e.message || e), 'bad');
+  } finally { busy = false; }
+}
+async function loop(){
+  if (!running) return;
+  await scanOnce();
+  if (running) timer = setTimeout(loop, state.interval);
+}
+$('#btnRun').addEventListener('click', () => {
+  running = !running;
+  const b = $('#btnRun');
+  if (running) { b.textContent = '自動記録 停止'; b.className = 'stop grow'; setState('記録中','run'); keepAwake(); loop(); }
+  else { clearTimeout(timer); b.textContent = '自動記録 開始'; b.className = 'primary grow'; setState('停止中'); }
+});
+$('#btnOnce').addEventListener('click', scanOnce);
+
+function showDebug(text, rows, info){
+  $('#raw').textContent = text;
+  $('#ocrInfo').textContent = 'しきい値 ' + info.T + ' / 処理画像 ' + info.W + '×' + info.H + 'px / 読めた行 ' + rows.length;
+  const n = parseInt(state.carNo, 10);
+  const hasList = state.entries.length > 0;
+  $('#rowsTbl tbody').innerHTML = rows.map(r => {
+    const e = entryOf(r.no);
+    const team = e ? '<td class="team">' + esc(teamLabel(e)) + '</td>'
+               : (hasList && r.no != null ? '<td class="unk">リスト外</td>' : '<td></td>');
+    return '<tr' + (r.no === n ? ' style="color:var(--accent)"' : '') + '><td>' + (r.pos ?? '?') + '</td><td>' + (r.no ?? '?') + '</td>' + team +
+      '<td>' + (r.cpos ? esc(r.cls) + ' P' + r.cpos : '') + '</td><td>' + r.laps + '</td><td>' + r.lapStr + '</td><td>' + (r.total || '') + '</td></tr>';
+  }).join('');
+}
+
+/* ---------- render laps ---------- */
+const cposStr = l => l.cpos ? (l.cls ? l.cls + ' ' : '') + 'P' + l.cpos : '';
+function lapRowsHTML(L, opt){
+  const best = L.length ? Math.min(...L.map(l => l.sec)) : null;
+  const list = opt.desc ? L.slice().reverse() : L;
+  return list.map(l =>
+    '<tr class="' + (l.sec === best ? 'best' : '') + '"><td>' + l.lap + '</td><td>' + monOf(l) + '</td><td class="t">' + fmt(l.sec) + '</td><td>' + (l.sec === best ? 'BEST' : fmtDelta(l.sec - best)) +
+    '</td><td>' + (l.pos != null ? 'P' + l.pos : '') + '</td><td>' + esc(cposStr(l)) + '</td><td>' + esc(l.total || '') + '</td><td>' + clock(new Date(l.at)) +
+    '</td><td class="note">' + esc(l.note || '') + '</td>' +
+    (opt.del ? '<td><button class="x danger" data-lap="' + l.lap + '" aria-label="' + l.lap + '周を削除">✕</button></td>' : '') + '</tr>').join('');
+}
+const LAP_HEAD = '<tr><th>周</th><th>モニター</th><th>ラップ</th><th>ベスト差</th><th>順位</th><th>クラス順位</th><th>Total</th><th>記録時刻</th><th style="text-align:left">メモ</th></tr>';
+function heatStats(L){
+  if (!L.length) return { best:null, avg:null, count:0, last:null };
+  return { best:Math.min(...L.map(l => l.sec)), avg:L.reduce((s,l) => s + l.sec, 0) / L.length, count:L.length, last:L[L.length-1] };
+}
+function renderLaps(){
+  const L = state.laps;
+  const best = L.length ? Math.min(...L.map(l => l.sec)) : null;
+  const hc = hcOf(parseInt(state.carNo, 10));
+  $('#lapTbl tbody').innerHTML = lapRowsHTML(L, { desc:true, del:true });
+  $('#hcStatus').textContent = hcText({ hc, hcOff:state.hcOff, hcAt:state.hcAt });
+  $('#hcUndo').hidden = !state.hcOff;
+  $('#lapEmpty').hidden = L.length > 0;
+  $('#heatName').placeholder = defaultHeatName();
+  const last = L[L.length-1];
+  $('#vLast').textContent = last ? fmt(last.sec) : '—';
+  $('#vLap').textContent = last ? last.lap : '—';
+  $('#vLapAdj').textContent = !last ? '' : state.hcOff ? 'モニター ' + monOf(last) + '周' : hc ? 'ハンデ' + hc + '周 未消化' : '';
+  $('#vBest').textContent = best != null ? fmt(best) : '—';
+  $('#vCount').textContent = L.length;
+  const r5 = L.slice(-5);
+  $('#vAvg').textContent = r5.length ? fmt(r5.reduce((s,l) => s + l.sec, 0) / r5.length) : '—';
+  const d = $('#vDelta');
+  d.textContent = last ? (last.sec === best ? 'ベスト更新' : 'ベスト比 ' + fmtDelta(last.sec - best)) : '';
+  d.style.color = last && last.sec === best ? 'var(--good)' : '';
+  if (last && last.pos != null) $('#vPos').textContent = 'P' + last.pos;
+  if (last && last.cpos) $('#vPosAdj').textContent = cposStr(last);
+}
+function hcText(h){
+  if (h.hcOff) return 'ハンデ −' + h.hcOff + '周 消化済み（実周回 ' + h.hcAt + '周目のあと）';
+  if (h.hc) return 'ハンデ ' + h.hc + '周 未消化（モニターの周回数が減ったら自動で記録します）';
+  return '';
+}
+$('#lapTbl').addEventListener('click', e => {
+  const b = e.target.closest('button[data-lap]'); if (!b) return;
+  if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = '削除?'; setTimeout(() => { if (b.isConnected) { delete b.dataset.armed; b.textContent = '✕'; } }, 3000); return; }
+  state.laps = state.laps.filter(l => l.lap !== +b.dataset.lap); save(); renderLaps();
+});
+
+$('#btnAdd').addEventListener('click', () => {
+  const lap = parseInt($('#mLap').value, 10), m = $('#mTime').value.trim().match(LAP_RE);
+  if (isNaN(lap) || !m) { setMsg('周は数字、ラップは 53.412 や 1:02.345 の形で入力してください。', 'bad'); return; }
+  const mon = state.hcOff && lap > state.hcAt ? lap - state.hcOff : lap;
+  addLap({ lap, mon, sec:(m[1] ? +m[1]*60 : 0) + +m[2] + +m[3]/1000, pos:null, total:'', at:new Date().toISOString(), note:'手動' });
+  $('#mLap').value = ''; $('#mTime').value = '';
+});
+
+/* ---------- export ---------- */
+/* ---------- heats ---------- */
+function defaultHeatName(){ return 'ヒート' + (state.heats.length + 1); }
+function curHeat(){
+  const no = parseInt(state.carNo, 10), e = entryOf(no);
+  return { id:'cur', name:state.heatName.trim() || defaultHeatName(), carNo:state.carNo, team:e ? e.team : '', cls:e ? e.cls : '', hc:hcOf(no),
+           hcOff:state.hcOff, hcAt:state.hcAt,
+           start:state.heatStart || (state.laps[0] && state.laps[0].at) || null,
+           end:state.laps.length ? state.laps[state.laps.length-1].at : null, laps:state.laps };
+}
+function heatRows(h){
+  const head = ['実周回','モニター周回','ラップ','ラップ(秒)','順位','クラス順位','Total','記録時刻','メモ'];
+  return [head].concat(h.laps.map(l => [l.lap, monOf(l), fmt(l.sec), l.sec.toFixed(3), l.pos ?? '', cposStr(l), l.total || '', clock(new Date(l.at)), l.note || '']));
+}
+function fileBase(h){
+  const d = h.start ? new Date(h.start) : new Date();
+  return 'asan-' + (h.name || 'heat').replace(/[\\/:*?"<>|\s]+/g, '_') + '-No' + (h.carNo || 'x') + '-' + d.getFullYear() + pad2(d.getMonth()+1) + pad2(d.getDate());
+}
+async function copyHeat(h, say){
+  if (!h.laps.length) { say('記録がありません。', 'warn'); return; }
+  const ok = await copyText(heatRows(h).map(r => r.join('\t')).join('\n'));
+  say(ok ? 'コピーしました。Excelのセルを選んで貼り付けてください。' : 'コピーできませんでした。CSV保存を使ってください。', ok ? 'good' : 'bad');
+}
+function csvHeat(h, say){
+  if (!h.laps.length) { say('記録がありません。', 'warn'); return; }
+  const csv = heatRows(h).map(r => r.map(v => /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g,'""') + '"' : v).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([String.fromCharCode(0xFEFF) + csv], { type:'text/csv' }));
+  a.download = fileBase(h) + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function pdfHeat(h, say){
+  if (!h.laps.length) { say('記録がありません。', 'warn'); return; }
+  const s = heatStats(h.laps), hct = hcText(h);
+  const who = 'No.' + esc(h.carNo || '?') + (h.team ? ' ' + esc(h.team) : '') + (h.cls ? '（' + esc(h.cls) + '）' : '');
+  const span = h.start ? ymd(h.start) + ' ' + clock(new Date(h.start)) + (h.end ? ' 〜 ' + clock(new Date(h.end)) : '') : '';
+  $('#print').innerHTML =
+    '<h1>阿讃 軽四耐久 ラップ記録 — ' + esc(h.name) + '</h1>' +
+    '<p class="meta">' + who + (span ? '　' + span : '') + (hct ? '<br>' + esc(hct.replace(/（モニター.*$/, '')) : '') + '</p>' +
+    '<div class="sum"><span>実周回 <b>' + s.last.lap + '</b>（モニター <b>' + monOf(s.last) + '</b>）</span>' +
+    '<span>ベスト <b>' + fmt(s.best) + '</b></span><span>平均 <b>' + fmt(s.avg) + '</b></span><span>記録数 <b>' + s.count + '</b></span>' +
+    (s.last.pos != null ? '<span>最終順位 <b>P' + s.last.pos + '</b>' + (s.last.cpos ? '（' + esc(cposStr(s.last)) + '）' : '') + '</span>' : '') + '</div>' +
+    '<table><thead>' + LAP_HEAD + '</thead><tbody>' + lapRowsHTML(h.laps, { desc:false, del:false }) + '</tbody></table>' +
+    '<p class="foot">阿讃ラップロガーで記録（モニターの文字認識による自動記録。読み取り抜けはメモ欄に表示）</p>';
+  const title = document.title;
+  document.title = fileBase(h);   // becomes the default PDF file name
+  const restore = () => { document.title = title; window.removeEventListener('afterprint', restore); };
+  window.addEventListener('afterprint', restore);
+  setTimeout(() => window.print(), 50);
+}
+$('#btnCopy').addEventListener('click', () => copyHeat(curHeat(), setMsg));
+$('#btnCsv').addEventListener('click', () => csvHeat(curHeat(), setMsg));
+$('#btnPdf').addEventListener('click', () => pdfHeat(curHeat(), setMsg));
+const heatName = $('#heatName'); heatName.value = state.heatName;
+heatName.addEventListener('input', () => { state.heatName = heatName.value; save(); });
+
+function armed(b, label, armedLabel){
+  if (b.dataset.armed) { delete b.dataset.armed; b.textContent = label; return true; }
+  b.dataset.armed = '1'; b.textContent = armedLabel;
+  setTimeout(() => { if (b.isConnected && b.dataset.armed) { delete b.dataset.armed; b.textContent = label; } }, 3000);
+  return false;
+}
+function resetCurrent(){
+  state.laps = []; state.heatName = ''; state.heatStart = null; heatName.value = '';
+  state.hcOff = 0; state.hcAt = null; pendingDrop = null; ignoreKey = null; $('#hcAsk').hidden = true;
+  cand = null; candCount = 0; lowerCount = 0;
+  save(); renderLaps(); renderHeats();
+  $('#vPos').textContent = '—'; $('#vPosAdj').textContent = '';
+}
+$('#btnSaveHeat').addEventListener('click', e => {
+  if (!state.laps.length) { setMsg('まだ記録がないので保存できません。', 'warn'); return; }
+  if (!armed(e.currentTarget, 'ヒートを保存して次へ', 'もう一度押すと保存して次へ')) return;
+  saveHeat();
+});
+function saveHeat(){
+  const h = curHeat(), name = h.name;
+  state.heats.push(Object.assign({}, h, { id:Date.now().toString(36), laps:state.laps.slice(), savedAt:new Date().toISOString() }));
+  resetCurrent();
+  setMsg('「' + name + '」を保存しました。［履歴］タブで見られます。次のヒートの記録を始められます。', 'good');
+}
+$('#btnClear').addEventListener('click', e => {
+  if (!armed(e.currentTarget, '保存せず全消去', 'もう一度押すと全消去')) return;
+  resetCurrent(); setMsg('記録を消去しました。', 'good');
+});
+
+function renderHeats(){
+  const H = state.heats.slice().reverse();
+  $('#histEmpty').hidden = H.length > 0;
+  $('#heatList').innerHTML = H.map(h => {
+    const s = heatStats(h.laps), hc = h.hcOff || h.hc || 0;
+    return '<div class="heat" data-id="' + esc(h.id) + '">' +
+      '<div class="hd"><b>' + esc(h.name) + '</b><span class="meta">' + (h.start ? ymd(h.start) + ' ' + clock(new Date(h.start)) : '') +
+        '　No.' + esc(h.carNo || '?') + (h.team ? ' ' + esc(h.team) : '') + (hc ? '　ハンデ' + hc + '周' + (h.hcOff ? '' : '（未消化）') : '') + '</span></div>' +
+      '<div class="meta">実周回 ' + (s.last ? s.last.lap : '—') + (s.last ? '（モニター ' + monOf(s.last) + '）' : '') +
+        '　ベスト ' + fmt(s.best) + '　平均 ' + fmt(s.avg) + '　記録 ' + s.count + '周' + (s.last && s.last.pos != null ? '　最終 P' + s.last.pos : '') + '</div>' +
+      '<div class="row"><button data-act="pdf" class="primary">PDF出力</button><button data-act="copy">Excel用にコピー</button>' +
+        '<button data-act="csv">CSV保存</button><button data-act="del" class="danger">削除</button></div>' +
+      '<p class="msg" data-msg hidden></p>' +
+      '<details><summary>ラップ一覧</summary><div class="tablewrap lapscroll"><table><thead>' + LAP_HEAD + '</thead><tbody>' +
+        lapRowsHTML(h.laps, { desc:false, del:false }) + '</tbody></table></div></details>' +
+    '</div>';
+  }).join('');
+}
+$('#heatList').addEventListener('click', e => {
+  const b = e.target.closest('button[data-act]'); if (!b) return;
+  const card = b.closest('.heat'), h = state.heats.find(x => x.id === card.dataset.id); if (!h) return;
+  const say = (t, kind) => { const m = card.querySelector('[data-msg]'); m.hidden = false; m.textContent = t; m.className = 'msg' + (kind ? ' ' + kind : ''); };
+  const act = b.dataset.act;
+  if (act === 'pdf') pdfHeat(h, say);
+  else if (act === 'copy') copyHeat(h, say);
+  else if (act === 'csv') csvHeat(h, say);
+  else if (act === 'del') {
+    if (!armed(b, '削除', 'もう一度押すと削除')) return;
+    state.heats = state.heats.filter(x => x !== h); save(); renderHeats(); renderLaps();
+  }
+});
+
+/* ---------- settings ---------- */
+const carNo = $('#carNo'); carNo.value = state.carNo;
+function showCarTeam(){
+  const e = entryOf(parseInt(state.carNo, 10)), el = $('#carTeam');
+  el.textContent = e ? teamLabel(e) : (state.carNo && state.entries.length ? 'リスト外' : '');
+  el.className = e ? 'team' : 'unk';
+}
+carNo.addEventListener('input', () => { state.carNo = half(carNo.value).replace(/\D/g,''); carNo.value = state.carNo; cand = null; save(); showCarTeam(); renderLaps(); });
+
+/* ---------- tabs ---------- */
+function showTab(t){
+  state.tab = t; save();
+  $('#pageRec').hidden = t !== 'rec'; $('#pageHist').hidden = t !== 'hist'; $('#pageSet').hidden = t !== 'set';
+  document.querySelectorAll('.tabs [data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+  if (t === 'rec') resizeView();
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+/* ---------- entry list ---------- */
+const COL_KINDS = [['no','ゼッケン'],['team','チーム名'],['cls','クラス'],['hc','ハンデ'],['skip','使わない']];
+const NCOLS = 6;
+function colOrder(){ const c = state.entryCols.slice(); while (c.length && c[c.length-1] === 'skip') c.pop(); return c; }
+function renderColSel(){
+  const cols = state.entryCols;
+  while (cols.length < NCOLS) cols.push('skip');
+  $('#colSel').innerHTML = cols.slice(0, NCOLS).map((v,i) =>
+    '<label class="f">' + (i+1) + '列目<select data-col="' + i + '">' +
+    COL_KINDS.map(([k,l]) => '<option value="' + k + '"' + (k === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label>').join('');
+  const ex = { no:'33', team:'チームアサン', cls:'KT', hc:'2', skip:'…' };
+  $('#ePaste').placeholder = '例：\n' + colOrder().map(k => ex[k]).join('\t') + '\n' + colOrder().map(k => ({ no:'7', team:'四国レーシング', cls:'KR', hc:'0', skip:'…' })[k]).join('\t');
+}
+$('#colSel').addEventListener('change', e => {
+  const s = e.target.closest('select[data-col]'); if (!s) return;
+  state.entryCols[+s.dataset.col] = s.value; save(); renderColSel();
+});
+function colProblem(){
+  const c = colOrder(), cnt = k => c.filter(x => x === k).length;
+  if (cnt('no') !== 1) return '列の順番で「ゼッケン」をちょうど1つ選んでください。';
+  const dup = ['team','cls','hc'].find(k => cnt(k) > 1);
+  if (dup) return '列の順番で「' + COL_KINDS.find(x => x[0] === dup)[1] + '」が2つ以上あります。';
+  return '';
+}
+function parseEntryLine(line){
+  const s = half(line).trim(); if (!s) return null;
+  const cols = colOrder();
+  let cells;
+  if (/[\t,]/.test(s)) cells = s.split(s.includes('\t') ? '\t' : ',').map(c => c.trim().replace(/^"|"$/g, ''));
+  else {
+    // space separated: the team name may contain spaces, so give it whatever is left between the other columns
+    const tok = s.split(/\s+/), ti = cols.indexOf('team');
+    if (ti < 0) cells = tok;
+    else {
+      const before = ti, after = cols.length - ti - 1;
+      cells = tok.slice(0, before).concat([tok.slice(before, Math.max(before, tok.length - after)).join(' ')], tok.slice(Math.max(before, tok.length - after)));
+    }
+  }
+  const v = {};
+  cols.forEach((k,i) => { if (k !== 'skip' && v[k] == null) v[k] = (cells[i] || '').trim(); });
+  const m = (v.no || '').match(/^(?:No\.?)?\s*(\d{1,3})$/i); if (!m) return null;
+  const hc = parseInt((v.hc || '').replace(/[^\d-]/g, ''), 10);
+  return { no:+m[1], team:v.team || '', cls:(v.cls || '').toUpperCase(), hc:isNaN(hc) ? 0 : hc };
+}
+function upsertEntry(e){
+  state.entries = state.entries.filter(x => x.no !== e.no);
+  state.entries.push(e); state.entries.sort((a,b) => a.no - b.no);
+}
+function entMsg(t, kind){ const m = $('#entMsg'); m.hidden = !t; m.textContent = t; m.className = 'msg' + (kind ? ' ' + kind : ''); }
+function setClsOption(v){
+  const sel = $('#eCls');
+  if (v && ![...sel.options].some(o => o.value === v)) sel.add(new Option(v, v));
+  sel.value = v || '';
+}
+function renderEntries(){
+  $('#entTbl tbody').innerHTML = state.entries.map(e =>
+    '<tr data-no="' + e.no + '"><td>' + e.no + '</td><td>' + esc(e.team) + '</td><td>' + esc(e.cls || '') +
+    '</td><td>' + (e.hc ? e.hc + '周' : '') + '</td><td><button class="x danger" data-del="' + e.no + '" aria-label="No.' + e.no + 'を削除">✕</button></td></tr>').join('');
+  $('#entEmpty').hidden = state.entries.length > 0;
+  showCarTeam(); renderLaps();
+}
+function addEntryFromForm(){
+  const no = parseInt(half($('#eNo').value).replace(/\D/g,''), 10);
+  if (isNaN(no)) { entMsg('ゼッケンを数字で入力してください。', 'bad'); $('#eNo').focus(); return; }
+  const existed = !!entryOf(no);
+  const hc = parseInt(half($('#eHc').value).replace(/[^\d-]/g,''), 10);
+  upsertEntry({ no, team:$('#eTeam').value.trim(), cls:$('#eCls').value, hc:isNaN(hc) ? 0 : hc });
+  save(); renderEntries();
+  entMsg('No.' + no + ' を' + (existed ? '上書き' : '追加') + 'しました（全' + state.entries.length + '台）。', 'good');
+  $('#eNo').value = ''; $('#eTeam').value = ''; $('#eHc').value = '';
+  $('#eNo').focus();
+}
+$('#eAdd').addEventListener('click', addEntryFromForm);
+$('#eNo').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#eTeam').focus(); } });
+$('#eTeam').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); addEntryFromForm(); } });
+$('#eHc').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addEntryFromForm(); } });
+$('#entTbl').addEventListener('click', e => {
+  const b = e.target.closest('button[data-del]');
+  if (b) {
+    if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = '削除?'; setTimeout(() => { if (b.isConnected) { delete b.dataset.armed; b.textContent = '✕'; } }, 3000); return; }
+    state.entries = state.entries.filter(x => x.no !== +b.dataset.del); save(); renderEntries(); return;
+  }
+  const tr = e.target.closest('tr[data-no]'); if (!tr) return;
+  const en = entryOf(+tr.dataset.no); if (!en) return;
+  $('#eNo').value = en.no; $('#eTeam').value = en.team; setClsOption(en.cls); $('#eHc').value = en.hc || '';
+  entMsg('No.' + en.no + ' を呼び出しました。直して「追加」で上書きします。', '');
+  $('#eTeam').focus();
+});
+$('#eImport').addEventListener('click', () => {
+  const prob = colProblem(); if (prob) { entMsg(prob, 'bad'); return; }
+  const lines = $('#ePaste').value.split(/\r?\n/);
+  let n = 0, skipped = 0;
+  lines.forEach(l => { if (!l.trim()) return; const e = parseEntryLine(l); if (e) { upsertEntry(e); n++; } else skipped++; });
+  if (!n) { entMsg('取り込める行がありませんでした。「列の順番」が貼り付けた表と合っているか確認してください。', 'bad'); return; }
+  save(); renderEntries(); $('#ePaste').value = '';
+  entMsg(n + '台を取り込みました' + (skipped ? '（' + skipped + '行は読めずに飛ばしました。見出し行なら問題ありません）' : '') + '。全' + state.entries.length + '台。', 'good');
+});
+$('#eCopy').addEventListener('click', async () => {
+  if (!state.entries.length) { entMsg('リストが空です。', 'warn'); return; }
+  const ok = await copyText([['ゼッケン','チーム名','クラス','ハンデ']].concat(state.entries.map(e => [e.no, e.team, e.cls || '', e.hc || 0])).map(r => r.join('\t')).join('\n'));
+  entMsg(ok ? 'コピーしました（ゼッケン・チーム名・クラス・ハンデの順）。Excelやメモ帳に貼り付けて控えにできます。' : 'コピーできませんでした。', ok ? 'good' : 'bad');
+});
+$('#eClear').addEventListener('click', e => {
+  const b = e.currentTarget;
+  if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'もう一度押すと全消去'; setTimeout(() => { delete b.dataset.armed; b.textContent = 'リストを全消去'; }, 3000); return; }
+  delete b.dataset.armed; b.textContent = 'リストを全消去';
+  state.entries = []; save(); renderEntries(); entMsg('エントリーリストを消去しました。', 'good');
+});
+const bind = (id, key, conv) => { const el = $('#' + id); el.value = state[key]; el.addEventListener('change', () => { state[key] = conv(el.value); save(); }); };
+bind('interval', 'interval', Number); bind('confirmN', 'confirmN', Number);
+bind('minLap', 'minLap', Number); bind('maxLap', 'maxLap', Number);
+const off = $('#offset'); off.value = state.offset; off.addEventListener('input', () => { state.offset = +off.value; save(); });
+
+renderColSel(); renderEntries(); renderHeats(); showTab(['rec','hist','set'].includes(state.tab) ? state.tab : 'rec');
+if (typeof Tesseract === 'undefined') setMsg('OCRエンジンを読み込めませんでした。最初の1回はネットにつながった状態で開いてください。', 'bad');
+})();
+</script>
+</body>
+</html>
