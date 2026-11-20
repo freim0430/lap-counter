@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f1418">
 <meta name="robots" content="noindex,nofollow">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>阿讃ラップロガー</title>
 <style>
 /* Layout: pit-wall tool, one column on phones. Dashboard numbers on top, camera framing, lap log below.
@@ -328,6 +331,12 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
   </section>
 
   <section>
+    <h2>オフライン</h2>
+    <p class="msg" id="offState">確認中…</p>
+    <p class="hint">一度ネットにつながった状態で開くと、アプリと文字認識のデータ（約11MB）をこの端末に保存します。それ以降は電波がなくても開いて使えます。アプリを更新したときは、ネットにつながった状態で開くと新しい版に入れ替わります。</p>
+  </section>
+
+  <section>
     <h2>使い方のコツ</h2>
     <ol class="steps">
       <li>スマホを三脚やクランプでモニターの正面に固定し、充電しながら使います。画面は自動で消えないようにしています。</li>
@@ -342,7 +351,7 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
 </div>
 <div id="print"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="vendor/tesseract/tesseract.min.js"></script>
 <script>
 (() => {
 'use strict';
@@ -584,7 +593,11 @@ function getWorker(){
   if (typeof Tesseract === 'undefined') return Promise.reject(new Error('OCRエンジンを読み込めませんでした（ネット接続を確認）'));
   setState('OCR準備中');
   workerLoading = (async () => {
+    // Everything is served from this site (vendor/) so the service worker can keep it for offline use.
+    // workerBlobURL:false makes the worker a same-origin script, so its own fetches also go through the service worker.
+    const abs = p => new URL(p, location.href).href;
     const w = await Tesseract.createWorker('eng', 1, {
+      workerPath:abs('vendor/tesseract/worker.min.js'), corePath:abs('vendor/core'), langPath:abs('vendor/lang'), workerBlobURL:false,
       logger: m => { if (m.status && m.progress != null && m.status !== 'recognizing text') setState('準備 ' + Math.round(m.progress*100) + '%'); }
     });
     await w.setParameters({ tessedit_pageseg_mode:'6', preserve_interword_spaces:'1', user_defined_dpi:'300' });
@@ -1113,6 +1126,25 @@ const off = $('#offset'); off.value = state.offset; off.addEventListener('input'
 
 renderColSel(); renderEntries(); renderHeats(); showTab(['rec','hist','set'].includes(state.tab) ? state.tab : 'rec');
 if (typeof Tesseract === 'undefined') setMsg('OCRエンジンを読み込めませんでした。最初の1回はネットにつながった状態で開いてください。', 'bad');
+
+/* ---------- offline (service worker) ---------- */
+function offState(t, kind){ const m = $('#offState'); m.textContent = t; m.className = 'msg' + (kind ? ' ' + kind : ''); }
+async function checkOffline(){
+  if (!('serviceWorker' in navigator) || !window.caches) { offState('このブラウザ（またはファイルを直接開いた状態）ではオフライン保存が使えません。公開URL（https）で開いてください。', 'warn'); return; }
+  try {
+    const reg = await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.ready;
+    const ch = new MessageChannel();
+    const res = await new Promise((resolve, reject) => {
+      ch.port1.onmessage = e => resolve(e.data);
+      (navigator.serviceWorker.controller || reg.active).postMessage({ type:'status' }, [ch.port2]);
+      setTimeout(() => reject(new Error('timeout')), 5000);
+    });
+    if (res.missing === 0) offState('オフライン準備OK（' + res.version + '）。電波がなくても使えます。', 'good');
+    else offState('オフライン用の保存がまだ終わっていません（残り ' + res.missing + ' 個）。ネットにつながった状態で開き直してください。', 'warn');
+  } catch (e) { offState('オフライン保存の確認に失敗しました（' + (e && e.message || e) + '）。', 'warn'); }
+}
+checkOffline();
 })();
 </script>
 </body>
