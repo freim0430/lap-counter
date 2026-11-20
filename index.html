@@ -225,7 +225,7 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
       <div class="empty" id="viewEmpty">カメラか画像を開くと、ここにモニターが映ります</div>
       <video id="video" playsinline muted></video>
     </div>
-    <p class="hint">黄色い枠の4隅をドラッグして、表の「Pos.」列の左端から「Total Time」列の右端まで、全車の行が入るように合わせます。見出し行は入っても構いません。</p>
+    <p class="hint">黄色い枠の4隅をドラッグして、表の「Pos.」列の左端から「Total Time」列の右端まで、全車の行が入るように合わせます。見出し行は入っても構いません。列の並びが違うときは［設定］の「モニターの列の順番」を合わせてください。</p>
     <div class="row">
       <button id="btnRun" class="primary grow" disabled>自動記録 開始</button>
       <button id="btnOnce" disabled>1回だけ読む</button>
@@ -333,6 +333,7 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
           <li>表がなるべく大きく映るように近づけるか、ズームします。文字の高さが映像の高さの1/40以上あるのが目安です。</li>
           <li>照明の映り込みがあると読み間違えます。少し斜めから撮って映り込みを避けてかまいません（枠の4隅で、まっすぐに直して読みます）。</li>
           <li>黄色い丸（1〜4）を指でドラッグして、表の「Pos.」の列の左端から「Total Time」の列の右端まで、全車の行が入るように合わせます。見出しの行は入っても大丈夫です。</li>
+          <li>アプリは、行の中の数字を<b>［設定］の「モニターの列の順番」</b>どおりに読みます（初期値：順位 → ゼッケン → 名前 → クラス → 周回数 → ラップ → Total → 差）。モニターの列が入れ替わったときや、枠を一部の列だけに合わせたときは、ここを合わせてください。表の見出しの文字は読まないので、見出しの言葉が変わっても影響ありません。</li>
           <li>枠がずれたら「枠を戻す」で初めの位置に戻ります。枠の位置は保存されるので、次に開いたときもそのままです。</li>
           <li>映像が大きすぎる・小さすぎるときは、［設定］タブの「読み取りの設定」→「映像の表示サイズ」で変えられます（表示だけが変わり、読み取りの精度は変わりません）。</li>
         </ul>
@@ -412,6 +413,8 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
           <dd>ブラウザのカメラの許可を確認してください（アドレスバー左のマーク → 権限）。他のアプリがカメラを使っていると開けないことがあります。</dd>
           <dt>「No.○○ が見つかりません」と出る</dt>
           <dd>自車ゼッケンが合っているか、枠に自車の行が入っているかを確認します。「読み取りの様子・調整」で白黒画像を見て、文字がつぶれていたら「文字の太さ」を動かします。映り込みがあれば、スマホの角度を少し変えます。</dd>
+          <dt>周回数やラップが別の列の値になっている</dt>
+          <dd>モニターの列の並びが変わっているかもしれません。［設定］の「モニターの列の順番」を、枠の中に映っている列の順に合わせてください。</dd>
           <dt>ラップが記録されない</dt>
           <dd>同じ値を続けて読めるまで待っています。なかなか確定しないときは、［設定］の「確定に必要な一致回数」を1回にする方法もあります（読み間違いが増えるかもしれません）。ラップが「有効ラップ」の範囲（初期値35〜600秒）の外のときも記録しません。</dd>
           <dt>間違った値が記録された</dt>
@@ -461,6 +464,12 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
 
   <section>
     <h2>読み取りの設定</h2>
+    <p class="hint"><b style="color:var(--fg)">モニターの列の順番</b>：黄色い枠の中に映る列を、左から順に選びます。モニターの表の列が入れ替わったときや、枠を一部の列だけに合わせたときに変えてください。「周回数」と「ラップ」は必ず入れます。</p>
+    <div class="colsel" id="monColSel"></div>
+    <div class="row">
+      <button id="monColReset">初期値に戻す</button>
+      <span class="hint grow" id="monColMsg"></span>
+    </div>
     <div class="row">
       <label class="f">映像の表示サイズ（画面の高さに対して）
         <select id="viewPct"><option value="50">小（5割）</option><option value="70">中（7割）</option><option value="85">大（8.5割）</option><option value="0">制限なし（横幅いっぱい）</option></select>
@@ -498,7 +507,7 @@ const STORE = 'asanLapLogger.v1';
 const DEFAULT_QUAD = [[0.12,0.25],[0.88,0.25],[0.88,0.8],[0.12,0.8]];
 
 const state = { carNo:'', quad:DEFAULT_QUAD.map(p=>p.slice()), offset:0, interval:1000, confirmN:2, minLap:35, maxLap:600, laps:[], entries:[], tab:'rec',
-  entryCols:['no','team','cls','hc','skip'], heats:[], heatName:'', heatStart:null, hcOff:0, hcAt:null, viewPct:70 };
+  entryCols:['no','team','cls','hc','skip'], heats:[], heatName:'', heatStart:null, hcOff:0, hcAt:null, viewPct:70, monCols:null };
 try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s) Object.assign(state, s); } catch (e) {}
 function save(){ try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
 
@@ -757,24 +766,44 @@ function normTok(t){
   t = t.replace(/^(\d{2})\.\.(\d{3})$/, '$1.$2');
   return t;
 }
+/* Monitor column order (set in the settings tab). Each typed column must look like its kind;
+   name / gap / skip soak up any number of words (team names, "1 Lap", stray marks). */
+const MON_KINDS = [['pos','順位 (Pos.)'],['no','ゼッケン (No.)'],['name','名前'],['cls','クラス'],['laps','周回数 (Laps)'],
+                   ['lap','ラップ (最新通過)'],['total','Total Time'],['gap','差'],['skip','使わない']];
+const MON_DEFAULT = ['pos','no','name','cls','laps','lap','total','gap'];
+const MON_TYPE = {
+  pos:   t => { const m = t.match(/^\D{0,2}(\d{1,3})$/); return m ? +m[1] : null; },
+  no:    t => { const m = t.match(/^\D{0,2}(\d{1,3})$/); return m ? +m[1] : null; },
+  laps:  t => { const m = t.match(/^(?:[A-Z]{1,3}\d?)?(\d{1,3})$/); return m ? +m[1] : null; },
+  lap:   t => { const m = t.match(LAP_RE); return m ? (m[1] ? +m[1]*60 : 0) + +m[2] + +m[3]/1000 : null; },
+  total: t => TOTAL_RE.test(t) ? t : null,
+  cls:   t => /^(KR|KT|KN\d?)$/i.test(t) ? t.toUpperCase() : null,
+};
+const MON_WILD = { name:1, gap:1, skip:1 };
+const MON_OPTIONAL = { pos:1, no:1, cls:1, total:1 };   // often misread: the row still counts without them
+function monCols(){ const c = (state.monCols || MON_DEFAULT).slice(); while (c.length && c[c.length-1] === 'skip') c.pop(); return c; }
 function parseLine(line){
   const toks = line.trim().split(/\s+/).map(normTok).filter(Boolean);
-  for (let i=1;i<toks.length;i++){
-    const lm = toks[i].match(LAP_RE); if (!lm) continue;
-    const lapsM = toks[i-1].match(/^(?:[A-Z]{1,3}\d?)?(\d{1,3})$/); if (!lapsM) continue;
-    const lapSec = (lm[1] ? +lm[1]*60 : 0) + +lm[2] + +lm[3]/1000;
-    const total = toks[i+1] && TOTAL_RE.test(toks[i+1]) ? toks[i+1] : '';
-    const ints = [];
-    for (let k=0;k<i-1 && ints.length<2;k++){
-      const tk = toks[k];
-      if (!/\d/.test(tk)) { if (ints.length) break; else continue; }
-      const mm = tk.match(/^\D{0,2}(\d{1,3})$/);
-      if (mm) ints.push(+mm[1]); else break;
+  const cols = monCols(), n = toks.length, failed = new Set(), got = {};
+  const junk = t => !/\d/.test(t) && MON_TYPE.cls(t) == null;
+  // first-match search, trying "this token is the column" before "the column is missing / skip a stray mark"
+  function match(ci, ti){
+    if (ci === cols.length) return true;            // anything left over (gap, noise) is ignored
+    const key = ci * 1000 + ti; if (failed.has(key)) return false;
+    const c = cols[ci];
+    if (MON_WILD[c]) { for (let k = ti; k <= n; k++) if (match(ci + 1, k)) return true; }
+    else {
+      if (ti < n) { const v = MON_TYPE[c](toks[ti]); if (v != null) { got[c] = v; if (match(ci + 1, ti + 1)) return true; delete got[c]; } }
+      if (ti < n && junk(toks[ti]) && match(ci, ti + 1)) return true;   // stray mark (flag, |) before the column
+      if (MON_OPTIONAL[c] && match(ci + 1, ti)) return true;
     }
-    return { pos: ints.length===2 ? ints[0] : null, no: ints.length===2 ? ints[1] : null, ints,
-             laps: +lapsM[1], lapSec, lapStr: fmt(lapSec), total, raw: line };
+    failed.add(key); return false;
   }
-  return null;
+  if (!match(0, 0) || got.laps == null || got.lap == null) return null;
+  const both = got.pos != null && got.no != null;
+  const ints = [got.pos, got.no].filter(v => v != null);
+  return { pos: both ? got.pos : null, no: both ? got.no : (cols.indexOf('pos') < 0 && got.no != null ? got.no : null), ints,
+           laps: got.laps, lapSec: got.lap, lapStr: fmt(got.lap), total: got.total || '', raw: line };
 }
 function parseText(text){
   const rows = text.split('\n').map(parseLine).filter(Boolean);
@@ -1144,6 +1173,28 @@ $('#btnHelp').addEventListener('click', () => {
 const COL_KINDS = [['no','ゼッケン'],['team','チーム名'],['cls','クラス'],['hc','ハンデ'],['skip','使わない']];
 const NCOLS = 6;
 function colOrder(){ const c = state.entryCols.slice(); while (c.length && c[c.length-1] === 'skip') c.pop(); return c; }
+const MON_N = 9;
+function renderMonColSel(){
+  const cols = (state.monCols || MON_DEFAULT).slice();
+  while (cols.length < MON_N) cols.push('skip');
+  $('#monColSel').innerHTML = cols.slice(0, MON_N).map((v,i) =>
+    '<label class="f">' + (i+1) + '列目<select data-mcol="' + i + '">' +
+    MON_KINDS.map(([k,l]) => '<option value="' + k + '"' + (k === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label>').join('');
+  const c = monCols(), cnt = k => c.filter(x => x === k).length, m = $('#monColMsg');
+  let prob = '';
+  if (cnt('laps') !== 1 || cnt('lap') !== 1) prob = '「周回数」と「ラップ」を1つずつ選んでください。今のままでは記録できません。';
+  else { const d = MON_KINDS.find(([k]) => k !== 'skip' && cnt(k) > 1); if (d) prob = '「' + d[1] + '」が2つ以上あります。'; }
+  m.textContent = prob || '今の並び：' + c.map(k => MON_KINDS.find(x => x[0] === k)[1].replace(/ \(.*\)/, '')).join(' → ');
+  m.className = 'grow ' + (prob ? 'unk' : 'hint');
+}
+$('#monColSel').addEventListener('change', e => {
+  const s = e.target.closest('select[data-mcol]'); if (!s) return;
+  const cols = (state.monCols || MON_DEFAULT).slice();
+  while (cols.length < MON_N) cols.push('skip');
+  cols[+s.dataset.mcol] = s.value; state.monCols = cols; cand = null; save(); renderMonColSel();
+});
+$('#monColReset').addEventListener('click', () => { state.monCols = null; cand = null; save(); renderMonColSel(); });
+
 function renderColSel(){
   const cols = state.entryCols;
   while (cols.length < NCOLS) cols.push('skip');
@@ -1267,7 +1318,7 @@ btnFull.addEventListener('click', async () => {
 document.addEventListener('fullscreenchange', () => { btnFull.textContent = document.fullscreenElement ? '全画面を終了' : '全画面'; resizeView(); });
 const off = $('#offset'); off.value = state.offset; off.addEventListener('input', () => { state.offset = +off.value; save(); });
 
-renderColSel(); renderEntries(); renderHeats(); showTab(['rec','hist','set','help'].includes(state.tab) ? state.tab : 'rec');
+renderColSel(); renderMonColSel(); renderEntries(); renderHeats(); showTab(['rec','hist','set','help'].includes(state.tab) ? state.tab : 'rec');
 if (typeof Tesseract === 'undefined') setMsg('OCRエンジンを読み込めませんでした。最初の1回はネットにつながった状態で開いてください。', 'bad');
 
 /* ---------- offline (service worker) ---------- */
