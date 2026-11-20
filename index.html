@@ -124,6 +124,26 @@ pre{font:12px/1.4 var(--mono);white-space:pre-wrap;word-break:break-all;margin:0
 #video{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
 @media (max-width:420px){.tile.big .v{font-size:38px}.tile .v{font-size:19px}}
+/* Phone held sideways at the pit wall: camera on the left (stays in view), numbers and controls on the right */
+@media (orientation:landscape) and (max-height:560px){
+  body{font-size:14px}
+  .wrap{max-width:none;gap:10px}
+  header{flex-wrap:nowrap;gap:8px;padding:calc(6px + env(safe-area-inset-top,0px)) 0 6px}
+  header h1{flex:0 0 auto;font-size:15px}
+  .tabs{width:auto;flex:1;max-width:340px;margin-left:auto}
+  .tabs button{padding:6px 8px;font-size:14px}
+  #pageRec{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);grid-template-areas:"view dash" "view prep" "view laps";gap:10px;align-items:start}
+  #pageRec>.dash{grid-area:dash;gap:6px}
+  #secPrep{grid-area:prep} #secLaps{grid-area:laps}
+  #secView{grid-area:view;position:sticky;top:50px;align-self:start;max-height:calc(100vh - 56px);overflow:auto}
+  #secView > .hint{display:none}
+  section{padding:10px;gap:8px}
+  .tile{padding:6px 8px}
+  .tile.big .v{font-size:32px}
+  .tile .v{font-size:17px}
+  button,.btn{padding:8px 12px;font-size:14px}
+  input#carNo{font-size:22px;width:90px}
+}
 @media (prefers-reduced-motion:reduce){.tile.flash{animation:none}}
 </style>
 </head>
@@ -153,7 +173,7 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
     <div class="tile"><div class="k">最終読取</div><div class="v" id="vSeen" style="font-size:15px">—</div></div>
   </div>
 
-  <section>
+  <section id="secPrep">
     <h2>1. 準備</h2>
     <div class="row">
       <label class="f">自車ゼッケン
@@ -163,6 +183,7 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
       <div class="row grow">
         <button id="btnCam" class="primary">カメラ開始</button>
         <label class="btn">画像で試す<input type="file" id="file" accept="image/*"></label>
+        <button id="btnFull">全画面</button>
       </div>
     </div>
     <label class="f" id="zoomBox" hidden>ズーム <input type="range" id="zoom"></label>
@@ -178,7 +199,7 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
     </div>
   </section>
 
-  <section>
+  <section id="secView">
     <h2>2. 読み取り範囲</h2>
     <div class="viewwrap" id="viewwrap">
       <canvas id="view"></canvas>
@@ -206,7 +227,7 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
     </details>
   </section>
 
-  <section>
+  <section id="secLaps">
     <h2>3. ラップ記録</h2>
     <div class="row">
       <label class="f grow">ヒート名<input id="heatName" placeholder="ヒート1"></label>
@@ -290,7 +311,7 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
     <h2>読み取りの設定</h2>
     <div class="row">
       <label class="f">映像の表示サイズ（画面の高さに対して）
-        <select id="viewH"><option value="30">小（3割）</option><option value="45">中（4.5割）</option><option value="60">大（6割）</option><option value="0">制限なし（横幅いっぱい）</option></select>
+        <select id="viewPct"><option value="50">小（5割）</option><option value="70">中（7割）</option><option value="85">大（8.5割）</option><option value="0">制限なし（横幅いっぱい）</option></select>
       </label>
     </div>
     <p class="hint">表示の大きさだけを変えます。読み取りの精度は変わりません。小さくしたときは、4隅の丸を指でつかみやすいように、少し離れたところから触っても動かせます。</p>
@@ -330,7 +351,7 @@ const STORE = 'asanLapLogger.v1';
 const DEFAULT_QUAD = [[0.12,0.25],[0.88,0.25],[0.88,0.8],[0.12,0.8]];
 
 const state = { carNo:'', quad:DEFAULT_QUAD.map(p=>p.slice()), offset:0, interval:1000, confirmN:2, minLap:35, maxLap:600, laps:[], entries:[], tab:'rec',
-  entryCols:['no','team','cls','hc','skip'], heats:[], heatName:'', heatStart:null, hcOff:0, hcAt:null, viewH:45 };
+  entryCols:['no','team','cls','hc','skip'], heats:[], heatName:'', heatStart:null, hcOff:0, hcAt:null, viewPct:70 };
 try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s) Object.assign(state, s); } catch (e) {}
 function save(){ try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
 
@@ -373,7 +394,7 @@ function resizeView(){
   if (!cw) return;
   dpr = Math.min(window.devicePixelRatio || 1, 2);
   // fit inside the page width and the chosen share of the screen height, keeping the aspect ratio
-  const maxH = state.viewH ? Math.min(window.innerHeight, screen.height || Infinity) * state.viewH / 100 : Infinity;
+  const maxH = state.viewPct ? Math.min(window.innerHeight, screen.height || Infinity) * state.viewPct / 100 : Infinity;
   let w = cw, h = cw * srcH / srcW;
   if (h > maxH) { h = maxH; w = h * srcW / srcH; }
   view.width = Math.round(w*dpr); view.height = Math.round(h*dpr);
@@ -1074,7 +1095,20 @@ $('#eClear').addEventListener('click', e => {
 const bind = (id, key, conv) => { const el = $('#' + id); el.value = state[key]; el.addEventListener('change', () => { state[key] = conv(el.value); save(); }); };
 bind('interval', 'interval', Number); bind('confirmN', 'confirmN', Number);
 bind('minLap', 'minLap', Number); bind('maxLap', 'maxLap', Number);
-bind('viewH', 'viewH', Number); $('#viewH').addEventListener('change', resizeView);
+bind('viewPct', 'viewPct', Number); $('#viewPct').addEventListener('change', resizeView);
+
+/* ---------- fullscreen + landscape lock (Android Chrome) ---------- */
+const btnFull = $('#btnFull');
+if (!document.documentElement.requestFullscreen) btnFull.hidden = true;
+btnFull.addEventListener('click', async () => {
+  try {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen({ navigationUI:'hide' });
+      try { await screen.orientation.lock('landscape'); } catch (e) {}
+    } else await document.exitFullscreen();
+  } catch (e) { setMsg('全画面にできませんでした。', 'warn'); }
+});
+document.addEventListener('fullscreenchange', () => { btnFull.textContent = document.fullscreenElement ? '全画面を終了' : '全画面'; resizeView(); });
 const off = $('#offset'); off.value = state.offset; off.addEventListener('input', () => { state.offset = +off.value; save(); });
 
 renderColSel(); renderEntries(); renderHeats(); showTab(['rec','hist','set'].includes(state.tab) ? state.tab : 'rec');
