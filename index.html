@@ -37,7 +37,7 @@ header h1{font-size:17px;margin:0;letter-spacing:.02em;flex:1;min-width:0}
 .tabs button[aria-selected="true"]{background:var(--panel2);color:var(--accent);border-color:var(--line)}
 .page{display:flex;flex-direction:column;gap:14px}
 textarea{font:15px/1.5 var(--sans);background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;resize:vertical}
-#entTbl td{text-align:left;font-family:var(--sans)}
+#entTbl td,#entTbl th{text-align:left;font-family:var(--sans)}
 #entTbl td:first-child,#entTbl th:first-child{text-align:right;font-family:var(--mono);width:4em}
 #entTbl tbody tr{cursor:pointer}
 #entTbl td:last-child{text-align:right;width:1%}
@@ -131,6 +131,7 @@ tr.est td.note{color:var(--muted)}
 .faster,.tile .k2.faster{color:var(--good)} .slower,.tile .k2.slower{color:var(--bad)}
 #iTbl td.fastest,#iTbl tr.me td.fastest{color:var(--fast);font-weight:700}
 #iTbl tr.me td{color:var(--accent);font-weight:700}
+@media (min-width:640px){.dash.five{grid-template-columns:repeat(5,minmax(0,1fr))}}
 #iTbl td.team{font-family:var(--sans);text-align:left;max-width:9em;overflow:hidden;text-overflow:ellipsis}
 #iCls button[aria-pressed="true"]{background:var(--panel);color:var(--accent);border-color:var(--accent)}
 td.t{font-weight:600}
@@ -304,8 +305,10 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
   <div class="page" id="pageInfo" hidden>
   <section>
     <h2>自車</h2>
-    <div class="dash">
+    <div class="dash five">
       <div class="tile"><div class="k">ラストラップ</div><div class="v" id="iLast">—</div><div class="k2" id="iLastSub"></div></div>
+      <div class="tile"><div class="k">前の車との差</div><div class="v" id="iAhead">—</div><div class="k2" id="iAheadSub"></div></div>
+      <div class="tile"><div class="k">後ろの車との差</div><div class="v" id="iBehind">—</div><div class="k2" id="iBehindSub"></div></div>
       <div class="tile"><div class="k">このまま終われば</div><div class="v" id="iPts">—</div><div class="k2" id="iPtsSub"></div></div>
       <div class="tile"><div class="k">シリーズ順位</div><div class="v" id="iRank">—</div><div class="k2" id="iHc"></div></div>
     </div>
@@ -313,7 +316,7 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
   <section>
     <h2>クラス別順位</h2>
     <div class="row" id="iCls"></div>
-    <div class="tablewrap"><table id="iTbl"><thead><tr><th>P</th><th>No.</th><th style="text-align:left">チーム</th><th>周回</th><th>ラスト</th><th>前周比</th><th>ベスト</th><th>自車比</th><th>このまま</th><th>合計</th><th>シリーズ</th></tr></thead><tbody></tbody></table></div>
+    <div class="tablewrap"><table id="iTbl"><thead><tr><th>P</th><th>No.</th><th style="text-align:left">チーム</th><th>周回</th><th>自車との差</th><th>ラスト</th><th>前周比</th><th>ベスト</th><th>自車比</th><th>このまま</th><th>合計</th><th>シリーズ</th></tr></thead><tbody></tbody></table></div>
     <p class="hint" id="iFoot">まだ読み取っていません。［記録］で読み取りを始めると表示されます。</p>
   </section>
   </div>
@@ -410,7 +413,8 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
       <div class="help">
         <p>［記録］で読み取っている間、モニターの全車の情報をまとめて出します。</p>
         <ul>
-          <li><b>自車：</b>ラストラップと前周比（速くなったら緑、遅くなったら赤）、このまま終わったときのヒートポイントと合計、シリーズ順位、次のハンデ周回数。</li>
+          <li><b>自車：</b>ラストラップと前周比（速くなったら緑、遅くなったら赤）、前の車・後ろの車との差、このまま終わったときのヒートポイントと合計、シリーズ順位、次のハンデ周回数。</li>
+          <li><b>差：</b>同じ周回数の車とは、モニターの Total Time の差（秒）です。周回数が違う車とは「1周」のように周回の差を出します。前後の車は、自車と同じクラスの中で数えます。表の「自車との差」は、マイナスが自車より前、プラスが後ろです。</li>
           <li><b>クラス別順位：</b>クラスを選ぶと、そのクラスの順位表が出ます。ラスト・前周比・ベスト・自車比（自車のベストとの差）・このまま終わったときのポイント・合計・シリーズ順位です。</li>
           <li><b>色：</b>速いほうが緑、遅いほうが赤です（前周比は前の周より、自車比は自車より）。表の中でいちばん速いベスト（ファステスト）は紫です。</li>
           <li>ポイントは 1位20・2位15・3位12・4位10・5位8・6位6・7位4・8位3・9位2・10位1。クラス1位の周回数の75%に届かない車は0点です。</li>
@@ -1023,7 +1027,7 @@ const rowNo = r => r.no ?? (r.ints.length === 1 ? r.ints[0] : null);
 let carCand = {};
 function trackTable(rows){
   if (!rows.length) return;
-  state.table = { at:new Date().toISOString(), rows:rows.map(r => ({ no:rowNo(r), pos:r.pos, cls:r.cls || '', cpos:r.cpos || null, laps:r.laps, lapSec:r.lapSec })) };
+  state.table = { at:new Date().toISOString(), rows:rows.map(r => ({ no:rowNo(r), pos:r.pos, cls:r.cls || '', cpos:r.cpos || null, laps:r.laps, lapSec:r.lapSec, tot:totalSec(r.total) })) };
   for (const r of state.table.rows) {
     if (r.no == null || r.lapSec < state.minLap || r.lapSec > state.maxLap) continue;
     const key = fmt(r.lapSec), c = carCand[r.no];
@@ -1056,6 +1060,15 @@ function pointsView(rows){
   return { byNo:out, need };
 }
 const CLS_ORDER = ['KR', 'KT', 'KN1', 'KN2'];
+/* Gap of a car to ours. Same lap count: difference of Total Time (each car's time at its last line crossing),
+   negative = ahead of us. Different lap count: the lap difference (negative = laps ahead). */
+function gapTo(r, my){
+  if (!r || !my || r === my) return null;
+  if (r.laps !== my.laps) return { laps:my.laps - r.laps };
+  if (r.tot == null || my.tot == null) return null;
+  return { sec:r.tot - my.tot };
+}
+const gapStr = g => !g ? '' : g.laps != null ? (g.laps > 0 ? '+' : '−') + Math.abs(g.laps) + '周' : fmtDelta(g.sec);
 function renderInfo(){
   if ($('#pageInfo').hidden) return;
   const myNo = parseInt(state.carNo, 10), me = entryOf(myNo);
@@ -1068,6 +1081,18 @@ function renderInfo(){
   sub.className = 'k2' + (d == null ? '' : d < 0 ? ' faster' : d > 0 ? ' slower' : '');
   const T = state.table, rows = T ? T.rows : [], pv = pointsView(rows), mine = pv.byNo.get(myNo);
   const myRow = rows.find(r => r.no === myNo);
+  // cars just ahead / behind: in our class (or the whole table if we have no class)
+  const order = myRow && myRow.cls ? rows.filter(r => r.cls === myRow.cls).sort((a,b) => a.cpos - b.cpos)
+              : rows.slice().sort((a,b) => (a.pos ?? 999) - (b.pos ?? 999));
+  const mi = myRow ? order.indexOf(myRow) : -1;
+  const near = (id, r) => {
+    const g = gapTo(r, myRow), e = r && entryOf(r.no);
+    $('#' + id).textContent = !g ? '—' : g.laps != null ? Math.abs(g.laps) + '周' : Math.abs(g.sec).toFixed(3);
+    $('#' + id + 'Sub').textContent = !r ? (myRow && mi >= 0 ? 'なし' : '') :
+      'No.' + r.no + (e && e.team ? ' ' + e.team : '') + (r.cpos && myRow.cls ? '・' + r.cls + ' P' + r.cpos : r.pos ? '・P' + r.pos : '');
+  };
+  near('iAhead', mi > 0 ? order[mi - 1] : null);
+  near('iBehind', mi >= 0 ? order[mi + 1] : null);
   $('#iPts').textContent = mine && mine.total != null ? '+' + mine.gain + ' → ' + mine.total + 'pt' : '—';
   $('#iPtsSub').textContent = !me || !me.cls ? 'エントリーリストにクラスを入れてください' : me.pt == null ? 'エントリーリストにポイントを入れてください'
     : myRow && myRow.cpos ? me.cls + ' P' + myRow.cpos + (mine && mine.short ? '・75%未満で0点' : '') : '';
@@ -1090,7 +1115,7 @@ function renderInfo(){
     const vsMe = best != null && myBest != null && r.no !== myNo ? best - myBest : null;
     return '<tr' + (r.no === myNo ? ' class="me"' : '') + '><td>' + (sel === 'all' ? (r.pos ?? '') : r.cpos) + '</td><td>' + (r.no ?? '?') +
       '</td><td class="team">' + esc(e ? e.team : '') + (sel === 'all' && r.cls ? ' <span class="hint">' + esc(r.cls) + '</span>' : '') +
-      '</td><td>' + r.laps + '</td><td>' + fmt(car.last ?? r.lapSec) + '</td><td>' + dl(lp, lp < 0 ? 'faster' : lp > 0 ? 'slower' : '') +
+      '</td><td>' + r.laps + '</td><td>' + gapStr(gapTo(r, myRow)) + '</td><td>' + fmt(car.last ?? r.lapSec) + '</td><td>' + dl(lp, lp < 0 ? 'faster' : lp > 0 ? 'slower' : '') +
       '</td><td' + (best != null && best === fastest ? ' class="fastest"' : '') + '>' + (best != null ? fmt(best) : '') + '</td><td>' + dl(vsMe, vsMe < 0 ? 'faster' : vsMe > 0 ? 'slower' : '') +
       '</td><td>' + (p.gain != null ? '+' + p.gain : '') + '</td><td>' + (p.total ?? '') + '</td><td>' + (p.rank ? 'P' + p.rank : '') + '</td></tr>';
   }).join('');
