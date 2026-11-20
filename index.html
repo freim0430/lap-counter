@@ -50,16 +50,20 @@ textarea{font:15px/1.5 var(--sans);background:var(--panel2);color:var(--fg);bord
 .heat .meta{font-size:12.5px;color:var(--muted)}
 .heat details{background:var(--panel)}
 .colsel{display:flex;gap:6px;flex-wrap:wrap}
-#help details{background:var(--panel2)}
-#help summary{font-size:15px;color:var(--fg);padding:4px 0}
-#help details[open] summary{color:var(--accent)}
-.help{font-size:14px;line-height:1.7}
-.help p{margin:0 0 6px}
-.help ul,.help ol{margin:0;padding-left:20px}
-.help li{margin:0 0 4px}
-.help b{color:var(--accent);font-weight:600}
-.help dt{font-weight:600;margin-top:8px}
-.help dd{margin:2px 0 0 0;color:var(--muted)}
+.tabs button[data-tab="help"]{flex:0 0 44px;font-weight:700}
+#pageHelp section{max-width:760px;width:100%;margin:0 auto;gap:8px}
+#help details{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:0}
+#help summary{font-size:16px;font-weight:600;color:var(--fg);padding:13px 14px;margin:0}
+#help details[open] summary{color:var(--accent);border-bottom:1px solid var(--line)}
+.help{font-size:15px;line-height:1.85;padding:12px 16px 14px;color:#d5dde3}
+.help p{margin:0 0 8px}
+.help ul,.help ol{margin:0;padding-left:22px}
+.help li{margin:0 0 10px}
+.help li:last-child{margin-bottom:0}
+.help b{color:var(--fg);font-weight:700}
+.help dt{font-weight:700;color:var(--fg);margin-top:12px}
+.help dt:first-child{margin-top:0}
+.help dd{margin:2px 0 0 0}
 .colsel label.f{flex:1;min-width:90px}
 #print{display:none}
 @media print{
@@ -169,6 +173,7 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
       <button role="tab" data-tab="rec" aria-selected="true">記録</button>
       <button role="tab" data-tab="hist" aria-selected="false">履歴</button>
       <button role="tab" data-tab="set" aria-selected="false">設定</button>
+      <button role="tab" data-tab="help" aria-selected="false" aria-label="使い方" title="使い方">？</button>
     </nav>
   </header>
 
@@ -288,9 +293,9 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
   </section>
   </div>
 
-  <div class="page" id="pageSet" hidden>
+  <div class="page" id="pageHelp" hidden>
   <section id="help">
-    <h2>使い方（ヘルプ）</h2>
+    <h2>使い方</h2>
     <p class="hint">知りたい項目を押すと開きます。</p>
 
     <details>
@@ -309,8 +314,8 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
       <summary>当日の流れ（はじめての方へ）</summary>
       <div class="help">
         <ol>
-          <li><b>前日〜当日朝：</b>Wi-Fiなどネットのある所で一度アプリを開き、下の「オフライン」が「準備OK」になっているか見ます。</li>
-          <li><b>エントリーリストを入れる：</b>この［設定］タブで、配られた紙を見ながらゼッケン・チーム名・クラス・ハンデを入力します（なくても記録はできます）。</li>
+          <li><b>前日〜当日朝：</b>Wi-Fiなどネットのある所で一度アプリを開き、［設定］タブの「オフライン」が「準備OK」になっているか見ます。</li>
+          <li><b>エントリーリストを入れる：</b>［設定］タブで、配られた紙を見ながらゼッケン・チーム名・クラス・ハンデを入力します（なくても記録はできます）。</li>
           <li><b>スマホを固定する：</b>モニターの正面に、三脚かクランプで<b>横向き</b>に固定し、充電しながら使います。</li>
           <li><b>［記録］タブ→「1. 準備」：</b>自車ゼッケンを入れ、「カメラ開始」。必要なら「全画面」。</li>
           <li><b>「2. 読み取り範囲」：</b>黄色い枠の4隅を、表の範囲に合わせます。</li>
@@ -329,7 +334,7 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
           <li>照明の映り込みがあると読み間違えます。少し斜めから撮って映り込みを避けてかまいません（枠の4隅で、まっすぐに直して読みます）。</li>
           <li>黄色い丸（1〜4）を指でドラッグして、表の「Pos.」の列の左端から「Total Time」の列の右端まで、全車の行が入るように合わせます。見出しの行は入っても大丈夫です。</li>
           <li>枠がずれたら「枠を戻す」で初めの位置に戻ります。枠の位置は保存されるので、次に開いたときもそのままです。</li>
-          <li>映像が大きすぎる・小さすぎるときは、下の「読み取りの設定」→「映像の表示サイズ」で変えられます（表示だけが変わり、読み取りの精度は変わりません）。</li>
+          <li>映像が大きすぎる・小さすぎるときは、［設定］タブの「読み取りの設定」→「映像の表示サイズ」で変えられます（表示だけが変わり、読み取りの精度は変わりません）。</li>
         </ul>
       </div>
     </details>
@@ -392,7 +397,7 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
       <summary>電波がないとき（オフライン）</summary>
       <div class="help">
         <ul>
-          <li>一度ネットのある所で開くと、アプリと文字認識のデータが保存され、それ以降は電波がなくても使えます。下の「オフライン」欄で準備OKかを確認できます。</li>
+          <li>一度ネットのある所で開くと、アプリと文字認識のデータが保存され、それ以降は電波がなくても使えます。［設定］タブの「オフライン」欄で準備OKかを確認できます。</li>
           <li>Chromeのメニュー（︙）→「アプリをインストール」または「ホーム画面に追加」で、アイコンから横向きの画面ですぐ開けます。</li>
           <li>アプリが新しくなったときは、ネットのある所で1〜2回開き直すと入れ替わります。</li>
         </ul>
@@ -419,7 +424,9 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
       </div>
     </details>
   </section>
+  </div>
 
+  <div class="page" id="pageSet" hidden>
   <section>
     <h2>エントリーリスト</h2>
     <p class="hint">当日配られるエントリーリストを登録すると、読み取り結果にチーム名が出ます。リストにないゼッケンは番号だけ表示します。登録内容はこの端末の中だけに保存されます。</p>
@@ -1121,14 +1128,14 @@ carNo.addEventListener('input', () => { state.carNo = half(carNo.value).replace(
 /* ---------- tabs ---------- */
 function showTab(t){
   state.tab = t; save();
-  $('#pageRec').hidden = t !== 'rec'; $('#pageHist').hidden = t !== 'hist'; $('#pageSet').hidden = t !== 'set';
+  $('#pageRec').hidden = t !== 'rec'; $('#pageHist').hidden = t !== 'hist'; $('#pageSet').hidden = t !== 'set'; $('#pageHelp').hidden = t !== 'help';
   document.querySelectorAll('.tabs [data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
   if (t === 'rec') resizeView();
   window.scrollTo(0, 0);
 }
 document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
 $('#btnHelp').addEventListener('click', () => {
-  showTab('set');   // help is the first section of the settings tab
+  showTab('help');
   const ds = [...document.querySelectorAll('#help details')];
   if (!ds.some(d => d.open)) ds[1].open = true;   // open "当日の流れ" the first time
 });
@@ -1260,7 +1267,7 @@ btnFull.addEventListener('click', async () => {
 document.addEventListener('fullscreenchange', () => { btnFull.textContent = document.fullscreenElement ? '全画面を終了' : '全画面'; resizeView(); });
 const off = $('#offset'); off.value = state.offset; off.addEventListener('input', () => { state.offset = +off.value; save(); });
 
-renderColSel(); renderEntries(); renderHeats(); showTab(['rec','hist','set'].includes(state.tab) ? state.tab : 'rec');
+renderColSel(); renderEntries(); renderHeats(); showTab(['rec','hist','set','help'].includes(state.tab) ? state.tab : 'rec');
 if (typeof Tesseract === 'undefined') setMsg('OCRエンジンを読み込めませんでした。最初の1回はネットにつながった状態で開いてください。', 'bad');
 
 /* ---------- offline (service worker) ---------- */
