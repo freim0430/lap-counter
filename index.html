@@ -16,7 +16,7 @@
   --bg:#0f1418; --panel:#172027; --panel2:#1d2830; --line:#2b3842;
   --fg:#e9eef2; --muted:#8c9ba7;
   --accent:#f2c230; --accent-ink:#1a1400;
-  --good:#3ddc84; --warn:#ffa94d; --bad:#ff6b6b;
+  --good:#3ddc84; --warn:#ffa94d; --bad:#ff6b6b; --fast:#c084fc;
   --mono:ui-monospace,"SF Mono","Roboto Mono",Menlo,Consolas,monospace;
   --sans:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif;
   color-scheme:dark;
@@ -129,6 +129,7 @@ td.note{font-family:var(--sans);font-size:12px;color:var(--warn);text-align:left
 tr.best td.t{color:var(--good);font-weight:700}
 tr.est td.note{color:var(--muted)}
 .faster,.tile .k2.faster{color:var(--good)} .slower,.tile .k2.slower{color:var(--bad)}
+#iTbl td.fastest,#iTbl tr.me td.fastest{color:var(--fast);font-weight:700}
 #iTbl tr.me td{color:var(--accent);font-weight:700}
 #iTbl td.team{font-family:var(--sans);text-align:left;max-width:9em;overflow:hidden;text-overflow:ellipsis}
 #iCls button[aria-pressed="true"]{background:var(--panel);color:var(--accent);border-color:var(--accent)}
@@ -410,7 +411,8 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
         <p>［記録］で読み取っている間、モニターの全車の情報をまとめて出します。</p>
         <ul>
           <li><b>自車：</b>ラストラップと前周比（速くなったら緑、遅くなったら赤）、このまま終わったときのヒートポイントと合計、シリーズ順位、次のハンデ周回数。</li>
-          <li><b>クラス別順位：</b>クラスを選ぶと、そのクラスの順位表が出ます。ラスト・前周比・ベスト・自車比（自車のベストとの差。自車より速い車は赤）・このまま終わったときのポイント・合計・シリーズ順位です。</li>
+          <li><b>クラス別順位：</b>クラスを選ぶと、そのクラスの順位表が出ます。ラスト・前周比・ベスト・自車比（自車のベストとの差）・このまま終わったときのポイント・合計・シリーズ順位です。</li>
+          <li><b>色：</b>速いほうが緑、遅いほうが赤です（前周比は前の周より、自車比は自車より）。表の中でいちばん速いベスト（ファステスト）は紫です。</li>
           <li>ポイントは 1位20・2位15・3位12・4位10・5位8・6位6・7位4・8位3・9位2・10位1。クラス1位の周回数の75%に届かない車は0点です。</li>
           <li>他車のラップは、同じ値を続けて読めたときだけ数えます。ハンデを消化していない車がいる間は、見た目の順位が変わるので参考にしてください。</li>
           <li>クラスとポイントは［設定］のエントリーリストから使います。リストにない車は「全体」にだけ出ます。</li>
@@ -1079,21 +1081,23 @@ function renderInfo(){
   // table
   const list = sel === 'all' ? rows.slice().sort((a,b) => (a.pos ?? 999) - (b.pos ?? 999)) : rows.filter(r => r.cls === sel).sort((a,b) => a.cpos - b.cpos);
   const dl = (v, cls) => v == null ? '' : '<span class="' + cls + '">' + fmtDelta(v) + '</span>';
+  const bestOf = r => { const b = (state.cars[r.no] || {}).best; return r.no === myNo && myBest != null ? Math.min(myBest, b ?? Infinity) : b; };
+  const fastest = Math.min(...list.map(bestOf).filter(b => b != null));   // fastest lap of the cars shown → purple
   $('#iTbl tbody').innerHTML = list.map(r => {
     const e = entryOf(r.no), car = state.cars[r.no] || {}, p = pv.byNo.get(r.no) || {};
-    const best = r.no === myNo && myBest != null ? Math.min(myBest, car.best ?? Infinity) : car.best;
+    const best = bestOf(r);
     const lp = car.last != null && car.prev != null ? car.last - car.prev : null;
     const vsMe = best != null && myBest != null && r.no !== myNo ? best - myBest : null;
     return '<tr' + (r.no === myNo ? ' class="me"' : '') + '><td>' + (sel === 'all' ? (r.pos ?? '') : r.cpos) + '</td><td>' + (r.no ?? '?') +
       '</td><td class="team">' + esc(e ? e.team : '') + (sel === 'all' && r.cls ? ' <span class="hint">' + esc(r.cls) + '</span>' : '') +
       '</td><td>' + r.laps + '</td><td>' + fmt(car.last ?? r.lapSec) + '</td><td>' + dl(lp, lp < 0 ? 'faster' : lp > 0 ? 'slower' : '') +
-      '</td><td>' + (best != null ? fmt(best) : '') + '</td><td>' + dl(vsMe, vsMe < 0 ? 'slower' : vsMe > 0 ? 'faster' : '') +
+      '</td><td' + (best != null && best === fastest ? ' class="fastest"' : '') + '>' + (best != null ? fmt(best) : '') + '</td><td>' + dl(vsMe, vsMe < 0 ? 'faster' : vsMe > 0 ? 'slower' : '') +
       '</td><td>' + (p.gain != null ? '+' + p.gain : '') + '</td><td>' + (p.total ?? '') + '</td><td>' + (p.rank ? 'P' + p.rank : '') + '</td></tr>';
   }).join('');
   const nd = sel !== 'all' ? pv.need[sel] : null;
   $('#iFoot').textContent = !T ? 'まだ読み取っていません。［記録］で読み取りを始めると表示されます。'
     : '更新 ' + clock(new Date(T.at)) + '（' + rows.length + '台読取）' + (nd ? '・ポイント対象は ' + nd + '周以上（クラス1位の75%）' : '') +
-      '・自車比は自車より速いと赤・遅いと緑';
+      '・速い＝緑、遅い＝赤、ファステスト＝紫';
 }
 $('#iCls').addEventListener('click', e => { const b = e.target.closest('button[data-cls]'); if (!b) return; state.infoCls = b.dataset.cls; save(); renderInfo(); });
 
