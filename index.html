@@ -99,7 +99,7 @@ button:disabled{opacity:.45;cursor:default}
 .grow{flex:1}
 
 .viewwrap{position:relative;background:#000;border-radius:8px;overflow:hidden;min-height:120px}
-#view{display:block;width:100%;touch-action:none}
+#view{display:block;margin:0 auto;touch-action:none}
 .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);padding:16px;font-size:14px;pointer-events:none}
 .hint{font-size:12.5px;color:var(--muted);margin:0}
 .msg{font-size:13px;padding:8px 10px;border-radius:8px;background:var(--panel2);border-left:3px solid var(--line);margin:0}
@@ -289,6 +289,12 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
   <section>
     <h2>読み取りの設定</h2>
     <div class="row">
+      <label class="f">映像の表示サイズ（画面の高さに対して）
+        <select id="viewH"><option value="30">小（3割）</option><option value="45">中（4.5割）</option><option value="60">大（6割）</option><option value="0">制限なし（横幅いっぱい）</option></select>
+      </label>
+    </div>
+    <p class="hint">表示の大きさだけを変えます。読み取りの精度は変わりません。小さくしたときは、4隅の丸を指でつかみやすいように、少し離れたところから触っても動かせます。</p>
+    <div class="row">
       <label class="f">読み取り間隔
         <select id="interval"><option value="500">0.5秒</option><option value="1000" selected>1秒</option><option value="2000">2秒</option><option value="4000">4秒</option></select>
       </label>
@@ -324,7 +330,7 @@ const STORE = 'asanLapLogger.v1';
 const DEFAULT_QUAD = [[0.12,0.25],[0.88,0.25],[0.88,0.8],[0.12,0.8]];
 
 const state = { carNo:'', quad:DEFAULT_QUAD.map(p=>p.slice()), offset:0, interval:1000, confirmN:2, minLap:35, maxLap:600, laps:[], entries:[], tab:'rec',
-  entryCols:['no','team','cls','hc','skip'], heats:[], heatName:'', heatStart:null, hcOff:0, hcAt:null };
+  entryCols:['no','team','cls','hc','skip'], heats:[], heatName:'', heatStart:null, hcOff:0, hcAt:null, viewH:45 };
 try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s) Object.assign(state, s); } catch (e) {}
 function save(){ try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
 
@@ -366,9 +372,12 @@ function resizeView(){
   const cw = $('#viewwrap').clientWidth;
   if (!cw) return;
   dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const ch = cw * srcH / srcW;
-  view.width = Math.round(cw*dpr); view.height = Math.round(ch*dpr);
-  view.style.height = ch + 'px';
+  // fit inside the page width and the chosen share of the screen height, keeping the aspect ratio
+  const maxH = state.viewH ? Math.min(window.innerHeight, screen.height || Infinity) * state.viewH / 100 : Infinity;
+  let w = cw, h = cw * srcH / srcW;
+  if (h > maxH) { h = maxH; w = h * srcW / srcH; }
+  view.width = Math.round(w*dpr); view.height = Math.round(h*dpr);
+  view.style.width = w + 'px'; view.style.height = h + 'px';
   $('#viewEmpty').hidden = true;
   $('#btnRun').disabled = false; $('#btnOnce').disabled = false;
 }
@@ -1065,6 +1074,7 @@ $('#eClear').addEventListener('click', e => {
 const bind = (id, key, conv) => { const el = $('#' + id); el.value = state[key]; el.addEventListener('change', () => { state[key] = conv(el.value); save(); }); };
 bind('interval', 'interval', Number); bind('confirmN', 'confirmN', Number);
 bind('minLap', 'minLap', Number); bind('maxLap', 'maxLap', Number);
+bind('viewH', 'viewH', Number); $('#viewH').addEventListener('change', resizeView);
 const off = $('#offset'); off.value = state.offset; off.addEventListener('input', () => { state.offset = +off.value; save(); });
 
 renderColSel(); renderEntries(); renderHeats(); showTab(['rec','hist','set'].includes(state.tab) ? state.tab : 'rec');
