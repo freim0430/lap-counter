@@ -94,6 +94,8 @@ header h1 span{color:var(--accent)}
 .tile .v{font:700 22px/1.2 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile.big{grid-column:span 3;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
 .tile.big .v{font-size:44px;color:var(--accent)}
+.tile.wide{grid-column:span 3;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.tile.wide .k2{white-space:normal}
 .tile.big .sub{font:600 15px var(--mono);color:var(--muted)}
 .tile .v.good{color:var(--good)} .tile .v.slow{color:var(--warn)}
 @keyframes flash{from{background:#3a3214}to{background:var(--panel)}}
@@ -189,6 +191,7 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
     <div class="tile"><div class="k">順位</div><div class="v" id="vPos">—</div><div class="k2" id="vPosAdj"></div></div>
     <div class="tile"><div class="k">記録数</div><div class="v" id="vCount">0</div></div>
     <div class="tile"><div class="k">最終読取</div><div class="v" id="vSeen" style="font-size:15px">—</div></div>
+    <div class="tile wide" id="tPts" hidden><div class="k">このまま終われば</div><div class="v" id="vPts">—</div><div class="k2" id="vPtsSub"></div></div>
   </div>
 
   <section id="secPrep">
@@ -352,6 +355,7 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
           <li>同じ値を続けて読めたら確定します（初期値2回）。周回数が一度に何周も飛んだときは、念のため多めに確認します。</li>
           <li>読み取りが抜けて周回数が飛んだときは、1周だけの抜けなら、Total Time の差から抜けた周のラップを計算して埋めます（メモ欄に「補完」と表示）。2周以上抜けたときや Total Time が読めなかったときは、メモ欄に「○周 読み取り抜け」とだけ残します。</li>
           <li><b>上の数字：</b>ラストラップ（ベストとの差）、周回、ベスト、直近5周の平均、順位（下にクラス順位）、記録数、最後に読んだ時刻（かっこ内は1回の読み取りにかかった秒数）。</li>
+          <li><b>このまま終われば：</b>エントリーリストに自車のクラスとポイントを入れると出ます。今のクラス順位でヒートが終わったときのヒートポイント（1位20・2位15・3位12・4位10・5位8・6位6・7位4・8位3・9位2・10位1、クラス1位の周回数の75%に届かなければ0点）、合計ポイント、クラス内のシリーズ順位、次のハンデ周回数です。ハンデをまだ消化していない車がいる間は、見た目の順位が変わるので参考にしてください。</li>
           <li><b>「読み取りの様子・調整」</b>を開くと、白黒にした画像と、読めた全車の表が見られます。白地に黒い文字で数字がくっきり出ていれば正常です。文字がつぶれる・かすれるときは「文字の太さ」で調整します。「読み取り精度」が<b>自動</b>のときは、自車が見つからない・読めた台数が少ないときにアプリが太さを変えて読み直し、スライダーも自動で動きます。思うように合わないときは<b>手動</b>にして自分で合わせてください。</li>
           <li>読み間違いで記録されたときは、ラップ記録の表の ✕ で消し、「手動で1周追加・修正」で入れ直せます。</li>
         </ul>
@@ -441,13 +445,15 @@ ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--muted)}
       <label class="f">ゼッケン<input id="eNo" inputmode="numeric" maxlength="3" style="width:80px" enterkeyhint="next"></label>
       <label class="f grow">チーム名<input id="eTeam" enterkeyhint="done"></label>
       <label class="f">クラス<select id="eCls"><option value="">—</option><option>KR</option><option>KT</option><option>KN1</option></select></label>
-      <label class="f">ハンデ(周)<input id="eHc" inputmode="numeric" maxlength="3" style="width:80px" placeholder="0"></label>
+      <label class="f">ポイント<input id="ePt" inputmode="numeric" maxlength="4" style="width:80px" placeholder="0"></label>
+      <label class="f">ハンデ(周)<input id="eHc" inputmode="numeric" maxlength="3" style="width:80px" placeholder="自動"></label>
       <button id="eAdd" class="primary">追加</button>
     </div>
     <p class="hint">同じゼッケンで追加すると上書きします。表の行を押すと、上の欄に呼び出して直せます。</p>
+    <p class="hint"><b style="color:var(--fg)">ポイント</b>：そのヒートが始まる時点のシリーズポイントです。入れておくと、ハンデ周回数を「ポイント×0.1（四捨五入）」で自動計算し、［記録］に「このまま終わったら何ポイントか」を出します。第1ヒートのあとは、第1ヒートで取ったポイントを足して入れ直してください。ハンデ(周)を入れた車は、その値を優先します。</p>
     <p class="msg" id="entMsg" hidden></p>
     <div class="tablewrap lapscroll">
-      <table id="entTbl"><thead><tr><th>No.</th><th>チーム名</th><th>クラス</th><th>ハンデ</th><th></th></tr></thead><tbody></tbody></table>
+      <table id="entTbl"><thead><tr><th>No.</th><th>チーム名</th><th>クラス</th><th>ポイント</th><th>ハンデ</th><th></th></tr></thead><tbody></tbody></table>
     </div>
     <p class="hint" id="entEmpty">まだ登録がありません。</p>
     <div class="row">
@@ -531,7 +537,9 @@ function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&l
 const half = s => String(s).replace(/[０-９Ａ-Ｚａ-ｚ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/　/g, ' ');
 function entryOf(no){ return no == null ? null : (state.entries.find(e => e.no === no) || null); }
 function teamLabel(e){ return e ? e.team + (e.cls ? ' (' + e.cls + ')' : '') : ''; }
-function hcOf(no){ const e = entryOf(no); return e && e.hc ? e.hc : 0; }
+// handicap laps: typed value wins; otherwise series points × 0.1 rounded (regulation art. 32)
+const hcAuto = e => e && e.pt != null ? Math.round(e.pt / 10) : 0;
+function hcOf(no){ const e = entryOf(no); return !e ? 0 : e.hc > 0 ? e.hc : hcAuto(e); }
 const monOf = l => l.mon ?? l.lap;   // lap count shown on the monitor (drops once when the handicap is taken)
 function totalSec(t){
   const m = String(t || '').match(/^(?:(\d{1,2}):)?(\d{1,2}):(\d{2})\.(\d{3})$/);
@@ -975,6 +983,32 @@ function addLap(l, quiet){
   if (!quiet) { save(); renderLaps(); }
 }
 
+/* ---------- points if the heat ended now (regulation art. 28–32) ----------
+   Heat points by class position; none below 75% (rounded) of the class leader's laps.
+   Series rank: every car of our class in the entry list, with its points + what it would earn from the current table. */
+const HEAT_PTS = [20, 15, 12, 10, 8, 6, 4, 3, 2, 1];
+const rowNo = r => r.no ?? (r.ints.length === 1 ? r.ints[0] : null);
+function projectPts(rows, mine){
+  const me = entryOf(rowNo(mine));
+  if (!me || !me.cls || me.pt == null || !mine.cpos) return null;
+  const inCls = rows.filter(r => r.cls === me.cls);
+  const need = Math.round(Math.max(...inCls.map(r => r.laps)) * 0.75);
+  const heatPt = r => r.cpos <= HEAT_PTS.length && r.laps >= need ? HEAT_PTS[r.cpos - 1] : 0;
+  const gain = heatPt(mine), total = me.pt + gain;
+  const got = new Map(inCls.map(r => [rowNo(r), heatPt(r)]));
+  const rivals = state.entries.filter(e => e.cls === me.cls && e.no !== me.no);
+  const rank = 1 + rivals.filter(e => (e.pt || 0) + (got.get(e.no) || 0) > total).length;
+  return { cls:me.cls, cpos:mine.cpos, gain, total, rank, n:rivals.length + 1, hc:Math.round(total / 10), short:mine.laps < need, need,
+           unknown:rivals.filter(e => e.pt == null).length };
+}
+function showPts(p){
+  $('#tPts').hidden = !p; if (!p) return;
+  $('#vPts').textContent = '+' + p.gain + 'pt → ' + p.total + 'pt';
+  $('#vPtsSub').textContent = p.cls + ' P' + p.cpos + ' のまま' + (p.short ? '（クラス1位の75%＝' + p.need + '周に届かず0点）' : '') +
+    '・シリーズ ' + p.cls + ' P' + p.rank + '/' + p.n + '・次のハンデ ' + p.hc + '周' +
+    (p.unknown ? '（ポイント未入力の車 ' + p.unknown + '台）' : '');
+}
+
 /* ---------- auto 文字の太さ ----------
    Normally one read at the current value (same speed as manual). Only when our car is missing or
    clearly fewer rows than usual were read, the same frame is read again at shifted values. */
@@ -1031,6 +1065,7 @@ async function scanOnce(){
     else {
       $('#vPos').textContent = mine.pos != null ? 'P' + mine.pos : '—';
       $('#vPosAdj').textContent = mine.cpos ? mine.cls + ' P' + mine.cpos : '';
+      showPts(projectPts(rows, mine));
       const why = onReading(mine);
       const me = entryOf(mine.no ?? mine.ints[0]), nm = me && me.team ? ' ' + me.team : '';
       setMsg(why ? 'No.' + state.carNo + nm + ' を検出しましたが記録しません: ' + why
@@ -1195,7 +1230,7 @@ function resetCurrent(){
   state.hcOff = 0; state.hcAt = null; pendingDrop = null; ignoreKey = null; $('#hcAsk').hidden = true;
   cand = null; candCount = 0; lowerCount = 0;
   save(); renderLaps(); renderHeats();
-  $('#vPos').textContent = '—'; $('#vPosAdj').textContent = '';
+  $('#vPos').textContent = '—'; $('#vPosAdj').textContent = ''; showPts(null);
 }
 $('#btnSaveHeat').addEventListener('click', e => {
   if (!state.laps.length) { setMsg('まだ記録がないので保存できません。', 'warn'); return; }
@@ -1270,7 +1305,7 @@ $('#btnHelp').addEventListener('click', () => {
 });
 
 /* ---------- entry list ---------- */
-const COL_KINDS = [['no','ゼッケン'],['team','チーム名'],['cls','クラス'],['hc','ハンデ'],['skip','使わない']];
+const COL_KINDS = [['no','ゼッケン'],['team','チーム名'],['cls','クラス'],['pt','ポイント'],['hc','ハンデ'],['skip','使わない']];
 const NCOLS = 6;
 function colOrder(){ const c = state.entryCols.slice(); while (c.length && c[c.length-1] === 'skip') c.pop(); return c; }
 const MON_N = 9;
@@ -1301,8 +1336,8 @@ function renderColSel(){
   $('#colSel').innerHTML = cols.slice(0, NCOLS).map((v,i) =>
     '<label class="f">' + (i+1) + '列目<select data-col="' + i + '">' +
     COL_KINDS.map(([k,l]) => '<option value="' + k + '"' + (k === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label>').join('');
-  const ex = { no:'32', team:'チームアサン', cls:'KT', hc:'2', skip:'…' };
-  $('#ePaste').placeholder = '例：\n' + colOrder().map(k => ex[k]).join('\t') + '\n' + colOrder().map(k => ({ no:'7', team:'四国レーシング', cls:'KR', hc:'0', skip:'…' })[k]).join('\t');
+  const ex = { no:'32', team:'チームアサン', cls:'KT', pt:'52', hc:'5', skip:'…' };
+  $('#ePaste').placeholder = '例：\n' + colOrder().map(k => ex[k]).join('\t') + '\n' + colOrder().map(k => ({ no:'7', team:'四国レーシング', cls:'KR', pt:'0', hc:'0', skip:'…' })[k]).join('\t');
 }
 $('#colSel').addEventListener('change', e => {
   const s = e.target.closest('select[data-col]'); if (!s) return;
@@ -1311,7 +1346,7 @@ $('#colSel').addEventListener('change', e => {
 function colProblem(){
   const c = colOrder(), cnt = k => c.filter(x => x === k).length;
   if (cnt('no') !== 1) return '列の順番で「ゼッケン」をちょうど1つ選んでください。';
-  const dup = ['team','cls','hc'].find(k => cnt(k) > 1);
+  const dup = ['team','cls','pt','hc'].find(k => cnt(k) > 1);
   if (dup) return '列の順番で「' + COL_KINDS.find(x => x[0] === dup)[1] + '」が2つ以上あります。';
   return '';
 }
@@ -1332,9 +1367,11 @@ function parseEntryLine(line){
   const v = {};
   cols.forEach((k,i) => { if (k !== 'skip' && v[k] == null) v[k] = (cells[i] || '').trim(); });
   const m = (v.no || '').match(/^(?:No\.?)?\s*(\d{1,3})$/i); if (!m) return null;
-  const hc = parseInt((v.hc || '').replace(/[^\d-]/g, ''), 10);
-  return { no:+m[1], team:v.team || '', cls:(v.cls || '').toUpperCase(), hc:isNaN(hc) ? 0 : hc };
+  const hc = parseInt((v.hc || '').replace(/[^\d-]/g, ''), 10), pt = numOrNull(v.pt);
+  return { no:+m[1], team:v.team || '', cls:(v.cls || '').toUpperCase(), hc:isNaN(hc) ? 0 : hc, pt };
 }
+function numOrNull(s){ const n = parseInt(half(s || '').replace(/[^\d]/g, ''), 10); return isNaN(n) ? null : n; }
+const hcCell = e => e.hc > 0 ? e.hc + '周' : e.pt != null ? hcAuto(e) + '周（自動）' : '';
 function upsertEntry(e){
   state.entries = state.entries.filter(x => x.no !== e.no);
   state.entries.push(e); state.entries.sort((a,b) => a.no - b.no);
@@ -1348,7 +1385,7 @@ function setClsOption(v){
 function renderEntries(){
   $('#entTbl tbody').innerHTML = state.entries.map(e =>
     '<tr data-no="' + e.no + '"><td>' + e.no + '</td><td>' + esc(e.team) + '</td><td>' + esc(e.cls || '') +
-    '</td><td>' + (e.hc ? e.hc + '周' : '') + '</td><td><button class="x danger" data-del="' + e.no + '" aria-label="No.' + e.no + 'を削除">✕</button></td></tr>').join('');
+    '</td><td>' + (e.pt != null ? e.pt : '') + '</td><td>' + hcCell(e) + '</td><td><button class="x danger" data-del="' + e.no + '" aria-label="No.' + e.no + 'を削除">✕</button></td></tr>').join('');
   $('#entEmpty').hidden = state.entries.length > 0;
   showCarTeam(); renderLaps();
 }
@@ -1357,16 +1394,18 @@ function addEntryFromForm(){
   if (isNaN(no)) { entMsg('ゼッケンを数字で入力してください。', 'bad'); $('#eNo').focus(); return; }
   const existed = !!entryOf(no);
   const hc = parseInt(half($('#eHc').value).replace(/[^\d-]/g,''), 10);
-  upsertEntry({ no, team:$('#eTeam').value.trim(), cls:$('#eCls').value, hc:isNaN(hc) ? 0 : hc });
+  upsertEntry({ no, team:$('#eTeam').value.trim(), cls:$('#eCls').value, hc:isNaN(hc) ? 0 : hc, pt:numOrNull($('#ePt').value) });
   save(); renderEntries();
   entMsg('No.' + no + ' を' + (existed ? '上書き' : '追加') + 'しました（全' + state.entries.length + '台）。', 'good');
-  $('#eNo').value = ''; $('#eTeam').value = ''; $('#eHc').value = '';
+  $('#eNo').value = ''; $('#eTeam').value = ''; $('#eHc').value = ''; $('#ePt').value = ''; $('#eHc').placeholder = '自動';
   $('#eNo').focus();
 }
 $('#eAdd').addEventListener('click', addEntryFromForm);
 $('#eNo').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#eTeam').focus(); } });
 $('#eTeam').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); addEntryFromForm(); } });
 $('#eHc').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addEntryFromForm(); } });
+$('#ePt').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addEntryFromForm(); } });
+$('#ePt').addEventListener('input', () => { const pt = numOrNull($('#ePt').value); $('#eHc').placeholder = pt != null ? '自動 ' + hcAuto({ pt }) : '自動'; });
 $('#entTbl').addEventListener('click', e => {
   const b = e.target.closest('button[data-del]');
   if (b) {
@@ -1376,6 +1415,7 @@ $('#entTbl').addEventListener('click', e => {
   const tr = e.target.closest('tr[data-no]'); if (!tr) return;
   const en = entryOf(+tr.dataset.no); if (!en) return;
   $('#eNo').value = en.no; $('#eTeam').value = en.team; setClsOption(en.cls); $('#eHc').value = en.hc || '';
+  $('#ePt').value = en.pt ?? ''; $('#ePt').dispatchEvent(new Event('input'));
   entMsg('No.' + en.no + ' を呼び出しました。直して「追加」で上書きします。', '');
   $('#eTeam').focus();
 });
@@ -1390,8 +1430,8 @@ $('#eImport').addEventListener('click', () => {
 });
 $('#eCopy').addEventListener('click', async () => {
   if (!state.entries.length) { entMsg('リストが空です。', 'warn'); return; }
-  const ok = await copyText([['ゼッケン','チーム名','クラス','ハンデ']].concat(state.entries.map(e => [e.no, e.team, e.cls || '', e.hc || 0])).map(r => r.join('\t')).join('\n'));
-  entMsg(ok ? 'コピーしました（ゼッケン・チーム名・クラス・ハンデの順）。Excelやメモ帳に貼り付けて控えにできます。' : 'コピーできませんでした。', ok ? 'good' : 'bad');
+  const ok = await copyText([['ゼッケン','チーム名','クラス','ポイント','ハンデ']].concat(state.entries.map(e => [e.no, e.team, e.cls || '', e.pt ?? '', e.hc || ''])).map(r => r.join('\t')).join('\n'));
+  entMsg(ok ? 'コピーしました（ゼッケン・チーム名・クラス・ポイント・ハンデの順）。Excelやメモ帳に貼り付けて控えにできます。' : 'コピーできませんでした。', ok ? 'good' : 'bad');
 });
 $('#eClear').addEventListener('click', e => {
   const b = e.currentTarget;
