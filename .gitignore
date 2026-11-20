@@ -3,3 +3,4 @@ sample-monitor-*.jpg
 *.jpg
 # エディタの設定
 *.code-workspace
+regulation*/
